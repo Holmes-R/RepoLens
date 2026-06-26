@@ -9,6 +9,7 @@ from backend.app.core.ast_parser import ASTParser
 from backend.app.core.call_graph import CallGraphBuilder
 from backend.app.core.architecture_detector import ArchitectureDetector
 from backend.app.core.complexity_analyzer import ComplexityAnalyzer
+from backend.app.core.database_detector import DatabaseSchemaDetector
 from backend.app.core.health_score import HealthScoreCalculator
 from backend.app.services.git_service import GitService
 from backend.app.services.diagram_service import DiagramService
@@ -16,7 +17,7 @@ from backend.app.services.llm_service import LLMService
 from backend.app.services.vector_service import VectorService
 from backend.app.models.repository import (
     Repository, LanguageStats, Framework, Dependency, ModuleInfo,
-    ArchitectureInfo, ComplexityMetrics, AnalysisResult
+    ArchitectureInfo, ComplexityMetrics, AnalysisResult, DatabaseTable, DatabaseColumn
 )
 
 
@@ -33,11 +34,15 @@ class RepositoryAnalyzer:
         local_path = self.git_service.clone_repository(repo_url, branch)
         repo_name = self.git_service._extract_repo_name(repo_url)
 
+        gh_info = self.git_service.get_github_repo_info(repo_url)
         repo = Repository(
             url=repo_url,
             name=repo_name,
             full_name=repo_name,
             default_branch=branch,
+            stars=gh_info.get("stars", 0),
+            forks=gh_info.get("forks", 0),
+            open_issues=gh_info.get("open_issues", 0),
             local_path=local_path,
             status="analyzing",
         )
@@ -103,8 +108,23 @@ class RepositoryAnalyzer:
             complexity_data = complexity_analyzer.analyze()
             complexity = ComplexityMetrics(**complexity_data)
 
+            # Database schema detection
+            db_detector = DatabaseSchemaDetector(local_path)
+            db_schema_raw = db_detector.detect()
+            database_schema = []
+            for tbl in db_schema_raw.get("tables", []):
+                columns = [DatabaseColumn(**col) for col in tbl.get("columns", [])]
+                database_schema.append(DatabaseTable(
+                    name=tbl["name"],
+                    columns=columns,
+                    foreign_keys=tbl.get("foreign_keys", []),
+                ))
+
             # Contributor info
             contributors = self.git_service.get_contributors(local_path)
+
+            # Recent commit messages
+            commit_messages = self.git_service.get_recent_commits(repo_url)
 
             # Read README
             readme_content = None
@@ -141,6 +161,7 @@ class RepositoryAnalyzer:
                 "language_stats": [ls.model_dump() for ls in lang_stats],
                 "dependencies": [d.model_dump() for d in dependencies],
                 "modules": [m.model_dump() for m in modules],
+                "database_schema": [tbl.model_dump() for tbl in database_schema],
             }
 
             diagrams = {
@@ -161,8 +182,10 @@ class RepositoryAnalyzer:
                 architecture=architecture,
                 call_graph=call_graph,
                 complexity=complexity,
+                database_schema=database_schema,
                 health_score=health_scores.get("overall"),
                 contributors=contributors,
+                commit_messages=commit_messages,
                 readme_content=readme_content,
                 diagrams=diagrams,
             )

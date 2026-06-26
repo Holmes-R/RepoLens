@@ -1,7 +1,17 @@
+import re
 from typing import Dict, Any, List, Optional
 
 
 class DiagramService:
+    def _sanitize_mermaid_id(self, name: str) -> str:
+        safe = name.replace(".", "_").replace("-", "_").replace("/", "_").replace("[", "_").replace("]", "_")
+        safe = safe.replace("(", "_").replace(")", "_").replace(" ", "_").replace("+", "_plus_")
+        return safe
+
+    def _sanitize_mermaid_label(self, name: str) -> str:
+        # Remove characters Mermaid interprets as shape syntax
+        return re.sub(r"[\[\](){}<>]", "", name)
+
     def generate_mermaid_diagram(self, diagram_type: str, data: Dict[str, Any]) -> str:
         generators = {
             "architecture": self._generate_architecture_diagram,
@@ -33,16 +43,18 @@ class DiagramService:
         # Add language stats
         lang_stats = data.get("language_stats", [])
         mermaid.append("    end")
-        mermaid.append("    subgraph Languages[Languages]")
-        for lang in lang_stats[:5]:
-            safe = lang["language"].replace(" ", "_")
-            mermaid.append(f"        {safe}[{lang['language']}: {lang['percentage']}%]")
-        mermaid.append("    end")
+        if lang_stats:
+            mermaid.append("    subgraph Languages[Languages]")
+            for lang in lang_stats[:5]:
+                safe = lang["language"].replace(" ", "_")
+                mermaid.append(f"        {safe}[{lang['language']}: {lang['percentage']}%]")
+            mermaid.append("    end")
 
         # Connect architecture to languages
-        if layers:
+        if layers and lang_stats:
             first = layers[0].replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
-            mermaid.append(f"    {first} -->|built with| Languages")
+            first_lang = lang_stats[0]["language"].replace(" ", "_")
+            mermaid.append(f"    {first} -->|built with| {first_lang}")
 
         return "\n".join(mermaid)
 
@@ -72,14 +84,13 @@ class DiagramService:
         }
 
         for source, sdeps in source_groups.items():
-            safe_source = source.replace(".", "_")
+            safe_source = self._sanitize_mermaid_id(source)
             color = colors.get(source, "#90CAF9")
             mermaid.append(f"        subgraph {safe_source}[{source.upper()} - {len(sdeps)} deps]")
-            for d in sdeps[:8]:
-                safe_name = d["name"].replace(".", "_").replace("-", "_").replace("/", "_")
-                mermaid.append(f"            {safe_name}[{d['name']}]")
-            if len(sdeps) > 8:
-                mermaid.append(f"            more[...and {len(sdeps)-8} more]")
+            for d in sdeps:
+                safe_name = self._sanitize_mermaid_id(d["name"])
+                label = self._sanitize_mermaid_label(d["name"])
+                mermaid.append(f"            {safe_name}[{label}]")
             mermaid.append("        end")
 
         mermaid.append("    end")
@@ -130,30 +141,48 @@ class DiagramService:
         return "\n".join(mermaid)
 
     def _generate_class_diagram(self, data: Dict[str, Any]) -> str:
+        db_schema = data.get("database_schema", [])
         modules = data.get("modules", [])
         mermaid = ["classDiagram"]
 
-        classes_seen = set()
-        for m in modules:
-            for cls in m.get("classes", []):
-                name = cls if isinstance(cls, str) else cls.get("name", "")
-                if name and name not in classes_seen:
-                    classes_seen.add(name)
-
-        if classes_seen:
-            for name in classes_seen:
-                mermaid.append(f"    class {name}")
+        if db_schema:
+            tables_rendered = set()
+            for tbl in db_schema:
+                name = tbl["name"]
+                if name in tables_rendered:
+                    continue
+                tables_rendered.add(name)
+                mermaid.append(f"    class {name} {{")
+                for col in tbl.get("columns", []):
+                    pk_flag = "PK " if col.get("primary_key") else ""
+                    mermaid.append(f"        +{pk_flag}{col['type']} {col['name']}")
+                mermaid.append("    }")
+                for fk in tbl.get("foreign_keys", []):
+                    ref = fk.get("references_table", "")
+                    if ref in tables_rendered or any(t["name"] == ref for t in db_schema):
+                        mermaid.append(f"    {name} --> {ref}")
         else:
-            langs = [ls["language"] for ls in data.get("language_stats", [])[:3]]
-            mermaid.append("    class RepoLensAnalysis {")
-            mermaid.append("        +analyzeRepository()")
-            mermaid.append("        +detectLanguages()")
-            mermaid.append("        +buildCallGraph()")
-            mermaid.append("    }")
-            mermaid.append("    class Languages {")
-            for lang in langs:
-                mermaid.append(f"        +{lang}")
-            mermaid.append("    }")
+            classes_seen = set()
+            for m in modules:
+                for cls in m.get("classes", []):
+                    name = cls if isinstance(cls, str) else cls.get("name", "")
+                    if name and name not in classes_seen:
+                        classes_seen.add(name)
+
+            if classes_seen:
+                for name in classes_seen:
+                    mermaid.append(f"    class {name}")
+            else:
+                langs = [ls["language"] for ls in data.get("language_stats", [])[:3]]
+                mermaid.append("    class RepoLensAnalysis {")
+                mermaid.append("        +analyzeRepository()")
+                mermaid.append("        +detectLanguages()")
+                mermaid.append("        +buildCallGraph()")
+                mermaid.append("    }")
+                mermaid.append("    class Languages {")
+                for lang in langs:
+                    mermaid.append(f"        +{lang}")
+                mermaid.append("    }")
 
         return "\n".join(mermaid)
 

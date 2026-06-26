@@ -54,6 +54,18 @@ class Framework(BaseModel):
     category: str  # frontend, backend, testing, database, etc.
 
 
+class DatabaseColumn(BaseModel):
+    name: str
+    type: str
+    primary_key: bool = False
+
+
+class DatabaseTable(BaseModel):
+    name: str
+    columns: List[DatabaseColumn] = []
+    foreign_keys: List[Dict[str, str]] = []
+
+
 class ComplexityMetrics(BaseModel):
     total_files: int
     total_lines: int
@@ -72,6 +84,9 @@ class Repository(BaseModel):
     full_name: str
     default_branch: str = "main"
     description: Optional[str] = None
+    stars: int = 0
+    forks: int = 0
+    open_issues: int = 0
     status: RepoStatus = RepoStatus.PENDING
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
@@ -90,6 +105,8 @@ class AnalysisResult(BaseModel):
     complexity: Optional[ComplexityMetrics] = None
     health_score: Optional[float] = None
     contributors: List[Dict[str, Any]] = []
+    commit_messages: List[Dict[str, Any]] = []
     readme_content: Optional[str] = None
+    database_schema: List[DatabaseTable] = []
     diagrams: Dict[str, str] = {}  # type -> mermaid/markup string
     analyzed_at: datetime = Field(default_factory=datetime.now)

@@ -20,12 +20,12 @@ export function DiagramsPage() {
     setTimeout(() => {
       const el = document.getElementById(`diagram-${type}`);
       if (el) {
-        el.innerHTML = '';
-        mermaid.render(`svg-${type}`, code).then(({ svg }) => { el.innerHTML = svg; }).catch(() => {
-          el.innerHTML = '<pre class="text-red-500 text-sm">Failed to render diagram</pre>';
+        el.innerHTML = '<div class="text-slate-400 text-sm animate-pulse">Rendering...</div>';
+        mermaid.render(`svg-${type}`, code).then(({ svg }) => { el.innerHTML = svg; }).catch((err: Error) => {
+          el.innerHTML = `<pre class="text-red-500 text-xs whitespace-pre-wrap">${err.message || 'Failed to render diagram'}</pre>`;
         });
       }
-    }, 100);
+    }, 50);
   };
 
   useEffect(() => {

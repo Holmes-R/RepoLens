@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getAnalysis, analyzeRepo } from '../api/client';
 import type { AnalysisResult } from '../types';
-import { Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow, FileSearch, Puzzle, ArrowRight } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow, FileSearch, Puzzle, ArrowRight, Star, GitFork, Users, GitCommit } from 'lucide-react';
 
 export function AnalysisPage() {
   const { id } = useParams<{ id: string }>();
@@ -91,7 +91,10 @@ export function AnalysisPage() {
             {result.repository.description && <p className="text-slate-600 mb-4">{result.repository.description}</p>}
           </div>
 
-          <div className="grid grid-cols-3 gap-6">
+          <div className="grid grid-cols-6 gap-6">
+            <StatCard label="Stars" value={result.repository.stars.toLocaleString()} icon={<Star className="w-4 h-4 text-amber-500" />} />
+            <StatCard label="Forks" value={result.repository.forks.toLocaleString()} icon={<GitFork className="w-4 h-4 text-blue-500" />} />
+            <StatCard label="Contributors" value={result.contributors.length.toString()} icon={<Users className="w-4 h-4 text-green-500" />} />
             <StatCard label="Languages" value={result.language_stats.length.toString()} />
             <StatCard label="Dependencies" value={result.dependencies.length.toString()} />
             <StatCard label="Modules" value={result.modules.length.toString()} />

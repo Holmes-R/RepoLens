@@ -50,6 +50,26 @@ export interface ComplexityMetrics {
   max_complexity_file: string | null;
 }
 
+export interface DatabaseColumn {
+  name: string;
+  type: string;
+  primary_key: boolean;
+}
+
+export interface DatabaseTable {
+  name: string;
+  columns: DatabaseColumn[];
+  foreign_keys: { column: string; references_table: string; references_column: string }[];
+}
+
+export interface CommitInfo {
+  message: string;
+  author: string;
+  email: string;
+  date: string;
+  sha: string;
+}
+
 export interface AnalysisResult {
   repository: Repository;
   language_stats: LanguageStat[];
@@ -61,7 +81,9 @@ export interface AnalysisResult {
   complexity: ComplexityMetrics | null;
   health_score: number | null;
   contributors: Contributor[];
+  commit_messages: CommitInfo[];
   readme_content: string | null;
+  database_schema: DatabaseTable[];
   diagrams: Record<string, string>;
   analyzed_at: string;
 }
@@ -73,6 +95,9 @@ export interface Repository {
   full_name: string;
   default_branch: string;
   description: string | null;
+  stars: number;
+  forks: number;
+  open_issues: number;
   status: string;
   created_at: string;
   updated_at: string;
