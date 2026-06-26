@@ -1,0 +1,205 @@
+import { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { getAnalysis, getHealthScore, analyzeRepo } from '../api/client';
+import type { AnalysisResult, HealthScores } from '../types';
+import { HealthScoreCard } from '../components/HealthScore/HealthScoreCard';
+import { Loader2, AlertCircle, Search } from 'lucide-react';
+
+export function AnalysisPage() {
+  const { id } = useParams<{ id: string }>();
+  const [url, setUrl] = useState('');
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [health, setHealth] = useState<HealthScores | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (id) loadAnalysis(id);
+  }, [id]);
+
+  const loadAnalysis = async (analysisId: string) => {
+    setLoading(true);
+    try {
+      const [res, healthRes] = await Promise.all([
+        getAnalysis(analysisId),
+        getHealthScore(analysisId),
+      ]);
+      setResult(res);
+      setHealth(healthRes.scores);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to load analysis');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await analyzeRepo({ repo_url: url.trim() });
+      await loadAnalysis(res.analysis_id);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to analyze');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading && !result) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
+          <p className="text-slate-600">Analyzing repository...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-8 max-w-7xl mx-auto">
+      <form onSubmit={handleSubmit} className="flex gap-3 mb-8">
+        <input
+          type="text"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://github.com/user/repository"
+          className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+        />
+        <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
+          <Search className="w-4 h-4" /> Analyze
+        </button>
+      </form>
+
+      {error && (
+        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-lg mb-6">
+          <AlertCircle className="w-5 h-5" /> {error}
+        </div>
+      )}
+
+      {result && (
+        <div className="space-y-6">
+          <div className="card">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900">{result.repository.name}</h2>
+                <a href={result.repository.url} className="text-primary-600 text-sm hover:underline" target="_blank" rel="noreferrer">
+                  {result.repository.url}
+                </a>
+              </div>
+              <span className={`badge ${result.repository.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                {result.repository.status}
+              </span>
+            </div>
+            {result.repository.description && <p className="text-slate-600 mb-4">{result.repository.description}</p>}
+          </div>
+
+          <div className="grid grid-cols-4 gap-6">
+            <HealthScoreCard score={result.health_score ?? 0} />
+            <StatCard label="Languages" value={result.language_stats.length.toString()} />
+            <StatCard label="Dependencies" value={result.dependencies.length.toString()} />
+            <StatCard label="Modules" value={result.modules.length.toString()} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-6">
+            <div className="card">
+              <h3 className="font-semibold text-slate-900 mb-4">Languages</h3>
+              <div className="space-y-3">
+                {result.language_stats.map((lang) => (
+                  <div key={lang.language}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{lang.language}</span>
+                      <span className="text-slate-500">{lang.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-slate-100 rounded-full h-2">
+                      <div className="bg-primary-500 h-2 rounded-full transition-all" style={{ width: `${lang.percentage}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 className="font-semibold text-slate-900 mb-4">Complexity Metrics</h3>
+              {result.complexity && (
+                <div className="grid grid-cols-2 gap-4">
+                  <MetricItem label="Total Files" value={result.complexity.total_files} />
+                  <MetricItem label="Total Lines" value={result.complexity.total_lines} />
+                  <MetricItem label="Functions" value={result.complexity.total_functions} />
+                  <MetricItem label="Classes" value={result.complexity.total_classes} />
+                  <MetricItem label="Avg Function Length" value={`${result.complexity.avg_function_length} lines`} />
+                  <MetricItem label="Avg Complexity" value={result.complexity.avg_complexity.toFixed(2)} />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {result.architecture && (
+            <div className="card">
+              <h3 className="font-semibold text-slate-900 mb-4">Architecture</h3>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="badge bg-purple-100 text-purple-700 text-sm px-3 py-1">{result.architecture.pattern}</span>
+                <span className="text-sm text-slate-500">Confidence: {result.architecture.confidence}%</span>
+              </div>
+              <p className="text-slate-600 mb-3">{result.architecture.description}</p>
+              {result.architecture.layers.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {result.architecture.layers.map((layer) => (
+                    <span key={layer} className="badge bg-slate-100 text-slate-700">{layer}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {health && (
+            <div className="card">
+              <h3 className="font-semibold text-slate-900 mb-4">Health Score Breakdown</h3>
+              <div className="grid grid-cols-5 gap-4">
+                {Object.entries(health.details?.breakdown || {}).map(([key, val]) => (
+                  <div key={key} className="text-center">
+                    <div className="text-2xl font-bold text-slate-900">{Math.round(val.score)}</div>
+                    <div className="text-xs text-slate-500 capitalize">{key}</div>
+                  </div>
+                ))}
+              </div>
+              {health.details?.recommendations && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Recommendations</h4>
+                  <ul className="space-y-1">
+                    {health.details.recommendations.map((rec, i) => (
+                      <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
+                        <span className="text-amber-500 mt-0.5">{'\u25B6'}</span> {rec}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="card text-center">
+      <div className="text-3xl font-bold text-primary-600 mb-1">{value}</div>
+      <div className="text-sm text-slate-500">{label}</div>
+    </div>
+  );
+}
+
+function MetricItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-slate-50 rounded-lg p-3">
+      <div className="text-sm text-slate-500">{label}</div>
+      <div className="text-lg font-semibold text-slate-900">{value}</div>
+    </div>
+  );
+}

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/client.ts","./src/components/healthscore/healthscorecard.tsx","./src/pages/analysis.tsx","./src/pages/chat.tsx","./src/pages/diagrams.tsx","./src/pages/home.tsx","./src/types/index.ts"],"version":"5.9.3"}
