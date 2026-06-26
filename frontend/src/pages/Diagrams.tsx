@@ -5,7 +5,7 @@ import mermaid from 'mermaid';
 
 mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
 
-const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'class', 'layer'];
+const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'directory', 'layer'];
 
 export function DiagramsPage() {
   const [url, setUrl] = useState('');

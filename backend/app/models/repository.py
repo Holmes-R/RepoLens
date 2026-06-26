@@ -109,4 +109,5 @@ class AnalysisResult(BaseModel):
     readme_content: Optional[str] = None
     database_schema: List[DatabaseTable] = []
     diagrams: Dict[str, str] = {}  # type -> mermaid/markup string
+    file_contents: Dict[str, str] = {}  # path -> content preview for AI chat
     analyzed_at: datetime = Field(default_factory=datetime.now)

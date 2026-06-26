@@ -1,9 +1,9 @@
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { BarChart3, Search, MessageSquare, GitBranch, Activity, Home } from 'lucide-react';
+import { BarChart3, Search, GitBranch, Activity, Home, MessageSquare } from 'lucide-react';
 import { HomePage } from './pages/Home';
 import { AnalysisPage } from './pages/Analysis';
-import { ChatPage } from './pages/Chat';
 import { DiagramsPage } from './pages/Diagrams';
+import { ChatPage } from './pages/Chat';
 
 function App() {
   const location = useLocation();

@@ -17,7 +17,7 @@ class DiagramService:
             "architecture": self._generate_architecture_diagram,
             "dependency": self._generate_dependency_diagram,
             "sequence": self._generate_sequence_diagram,
-            "class": self._generate_class_diagram,
+            "directory": self._generate_directory_tree,
             "layer": self._generate_layer_diagram,
         }
         generator = generators.get(diagram_type, self._generate_architecture_diagram)
@@ -140,50 +140,49 @@ class DiagramService:
 
         return "\n".join(mermaid)
 
-    def _generate_class_diagram(self, data: Dict[str, Any]) -> str:
-        db_schema = data.get("database_schema", [])
-        modules = data.get("modules", [])
-        mermaid = ["classDiagram"]
+    def _generate_directory_tree(self, data: Dict[str, Any]) -> str:
+        files = data.get("analyzed_files", [])
+        if not files:
+            return "flowchart TD\n    empty[No files analyzed]"
 
-        if db_schema:
-            tables_rendered = set()
-            for tbl in db_schema:
-                name = tbl["name"]
-                if name in tables_rendered:
-                    continue
-                tables_rendered.add(name)
-                mermaid.append(f"    class {name} {{")
-                for col in tbl.get("columns", []):
-                    pk_flag = "PK " if col.get("primary_key") else ""
-                    mermaid.append(f"        +{pk_flag}{col['type']} {col['name']}")
-                mermaid.append("    }")
-                for fk in tbl.get("foreign_keys", []):
-                    ref = fk.get("references_table", "")
-                    if ref in tables_rendered or any(t["name"] == ref for t in db_schema):
-                        mermaid.append(f"    {name} --> {ref}")
-        else:
-            classes_seen = set()
-            for m in modules:
-                for cls in m.get("classes", []):
-                    name = cls if isinstance(cls, str) else cls.get("name", "")
-                    if name and name not in classes_seen:
-                        classes_seen.add(name)
+        tree = {}
+        for f in files:
+            parts = f.replace("\\", "/").split("/")
+            node = tree
+            for part in parts:
+                if part not in node:
+                    node[part] = {}
+                node = node[part]
 
-            if classes_seen:
-                for name in classes_seen:
-                    mermaid.append(f"    class {name}")
-            else:
-                langs = [ls["language"] for ls in data.get("language_stats", [])[:3]]
-                mermaid.append("    class RepoLensAnalysis {")
-                mermaid.append("        +analyzeRepository()")
-                mermaid.append("        +detectLanguages()")
-                mermaid.append("        +buildCallGraph()")
-                mermaid.append("    }")
-                mermaid.append("    class Languages {")
-                for lang in langs:
-                    mermaid.append(f"        +{lang}")
-                mermaid.append("    }")
+        mermaid = ["flowchart TD"]
+        node_id = 0
+        added = set()
 
+        def render(node, parent_id=None, depth=0):
+            nonlocal node_id
+            if depth > 4:
+                return
+            for name, children in sorted(node.items()):
+                is_leaf = not children
+                if node_id >= 60:
+                    return
+                current_id = f"N{node_id}"
+                node_id += 1
+                safe = self._sanitize_mermaid_id(name)
+                if safe in added:
+                    safe = f"{safe}_{current_id}"
+                added.add(safe)
+                if is_leaf:
+                    mermaid.append(f"    {current_id}[{name}]")
+                else:
+                    mermaid.append(f"    {current_id}[{name}/]")
+                if parent_id is not None:
+                    mermaid.append(f"    {parent_id} --> {current_id}")
+                render(children, current_id, depth + 1)
+
+        render(tree)
+        if node_id == 0:
+            mermaid.append("    empty[No files]")
         return "\n".join(mermaid)
 
     def _generate_layer_diagram(self, data: Dict[str, Any]) -> str:

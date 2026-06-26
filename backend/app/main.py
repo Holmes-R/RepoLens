@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 
 from backend.app.config import config
-from backend.app.api.routes import analyze, chat, diagrams, health
+from backend.app.api.routes import analyze, diagrams, health, chat
 
 app = FastAPI(
     title="RepoLens AI",

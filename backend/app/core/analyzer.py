@@ -13,8 +13,7 @@ from backend.app.core.database_detector import DatabaseSchemaDetector
 from backend.app.core.health_score import HealthScoreCalculator
 from backend.app.services.git_service import GitService
 from backend.app.services.diagram_service import DiagramService
-from backend.app.services.llm_service import LLMService
-from backend.app.services.vector_service import VectorService
+
 from backend.app.models.repository import (
     Repository, LanguageStats, Framework, Dependency, ModuleInfo,
     ArchitectureInfo, ComplexityMetrics, AnalysisResult, DatabaseTable, DatabaseColumn
@@ -26,8 +25,7 @@ class RepositoryAnalyzer:
         self.config = config
         self.git_service = GitService(config.REPO_STORAGE_PATH, config.GITHUB_TOKEN)
         self.diagram_service = DiagramService()
-        self.llm_service = LLMService(config.OPENAI_API_KEY, config.OPENAI_MODEL)
-        self.vector_service = VectorService(config.VECTOR_DB_PATH)
+
 
     def analyze(self, repo_url: str, branch: str = "main", deep: bool = False) -> AnalysisResult:
         # Clone repository
@@ -69,13 +67,21 @@ class RepositoryAnalyzer:
             raw_deps = dependency_analyzer.analyze()
             dependencies = [Dependency(**d) for d in raw_deps]
 
-            # Parse modules
+            # Parse modules and collect file contents for AI chat
             all_files = language_detector.get_all_files()
             modules = []
+            file_contents: Dict[str, str] = {}
+            code_exts = {".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs", ".cs", ".php", ".rb", ".css", ".scss", ".html", ".yaml", ".yml", ".json", ".xml", ".md"}
             for rel_path, info in all_files.items():
                 ext = os.path.splitext(rel_path)[1].lower()
+                full_path = os.path.join(local_path, rel_path)
+                if ext in code_exts and rel_path not in file_contents:
+                    try:
+                        with open(full_path, "r", encoding="utf-8", errors="ignore") as f:
+                            file_contents[rel_path] = f.read(3000)
+                    except Exception:
+                        pass
                 if ext in (".py", ".js", ".ts", ".jsx", ".tsx", ".java", ".go", ".rs", ".cs", ".php", ".rb"):
-                    full_path = os.path.join(local_path, rel_path)
                     parsed = ast_parser.parse_file(full_path)
                     modules.append(ModuleInfo(
                         name=os.path.basename(rel_path),
@@ -162,13 +168,14 @@ class RepositoryAnalyzer:
                 "dependencies": [d.model_dump() for d in dependencies],
                 "modules": [m.model_dump() for m in modules],
                 "database_schema": [tbl.model_dump() for tbl in database_schema],
+                "analyzed_files": all_files_list,
             }
 
             diagrams = {
                 "architecture": self.diagram_service.generate_mermaid_diagram("architecture", diagram_data),
                 "dependency": self.diagram_service.generate_mermaid_diagram("dependency", diagram_data),
                 "sequence": self.diagram_service.generate_mermaid_diagram("sequence", diagram_data),
-                "class": self.diagram_service.generate_mermaid_diagram("class", diagram_data),
+                "directory": self.diagram_service.generate_mermaid_diagram("directory", diagram_data),
                 "layer": self.diagram_service.generate_mermaid_diagram("layer", diagram_data),
             }
 
@@ -188,16 +195,11 @@ class RepositoryAnalyzer:
                 commit_messages=commit_messages,
                 readme_content=readme_content,
                 diagrams=diagrams,
+                file_contents=file_contents,
             )
 
             repo.status = "completed"
             repo.updated_at = datetime.now()
-
-            # Index repository into vector store before cleanup
-            try:
-                self.vector_service.index_repository(local_path, repo.id)
-            except Exception:
-                pass
 
             return result
 

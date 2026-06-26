@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, GitBranch, Shield, BarChart3, FileText, MessageSquare } from 'lucide-react';
+import { Search, GitBranch, Shield, BarChart3, FileText, LayoutDashboard } from 'lucide-react';
 import { analyzeRepo } from '../api/client';
 
 export function HomePage() {
@@ -30,7 +30,7 @@ export function HomePage() {
     { icon: Shield, label: 'Security Analysis', desc: 'Vulnerability detection' },
     { icon: FileText, label: 'Documentation', desc: 'Auto-generated docs' },
     { icon: Search, label: 'Code Analysis', desc: 'AST-based understanding' },
-    { icon: MessageSquare, label: 'AI Chat', desc: 'Repository-aware Q&A' },
+    { icon: LayoutDashboard, label: 'Interactive Dashboard', desc: 'All insights in one place' },
   ];
 
   return (

@@ -112,6 +112,12 @@ export interface Contributor {
   last_commit: string;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: string[];
+}
+
 export interface HealthScores {
   overall: number;
   security: number;
@@ -130,8 +136,4 @@ export interface HealthScores {
   };
 }
 
-export interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  sources?: string[];
-}
+

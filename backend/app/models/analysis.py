@@ -3,6 +3,17 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime
 
 
+class ChatRequest(BaseModel):
+    analysis_id: str
+    message: str
+    history: List[Dict[str, str]] = []
+
+
+class ChatResponse(BaseModel):
+    response: str
+    sources: List[str] = []
+
+
 class AnalyzeRequest(BaseModel):
     repo_url: str
     branch: Optional[str] = "main"
@@ -13,17 +24,6 @@ class AnalyzeResponse(BaseModel):
     analysis_id: str
     status: str
     message: str
-
-
-class ChatRequest(BaseModel):
-    analysis_id: str
-    message: str
-    history: List[Dict[str, str]] = []
-
-
-class ChatResponse(BaseModel):
-    response: str
-    sources: List[str] = []
 
 
 class DiagramRequest(BaseModel):
