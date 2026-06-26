@@ -43,6 +43,8 @@ class ArchitectureInfo(BaseModel):
     confidence: float
     description: str
     layers: List[str] = []
+    scores: Dict[str, float] = {}
+    evidence: List[str] = []
     components: List[Dict[str, Any]] = []
 
 

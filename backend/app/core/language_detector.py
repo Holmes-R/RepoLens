@@ -49,6 +49,24 @@ LANGUAGE_EXTENSIONS = {
     ".css": "CSS",
     ".scss": "SCSS",
     ".less": "LESS",
+    ".vue": "Vue",
+    ".svelte": "Svelte",
+    ".astro": "Astro",
+    ".graphql": "GraphQL",
+    ".gql": "GraphQL",
+    ".tf": "Terraform",
+    ".dockerfile": "Docker",
+    ".makefile": "Make",
+    ".cmake": "CMake",
+    ".bat": "Batch",
+    ".ps1": "PowerShell",
+    ".env": "Env",
+    ".gitignore": "Git",
+    ".editorconfig": "EditorConfig",
+    ".prettierrc": "Prettier",
+    ".eslintrc": "ESLint",
+    ".ini": "INI",
+    ".cfg": "Config",
 }
 
 
@@ -78,7 +96,7 @@ class LanguageDetector:
         language_stats = {}
         for path, info in self._file_cache.items():
             lang = info["language"]
-            if lang and info["lines"] > 0:
+            if lang and lang != "Unknown" and info["lines"] > 0:
                 if lang not in language_stats:
                     language_stats[lang] = {"files": 0, "lines": 0}
                 language_stats[lang]["files"] += 1

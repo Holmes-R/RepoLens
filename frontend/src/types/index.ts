@@ -35,6 +35,8 @@ export interface Architecture {
   confidence: number;
   description: string;
   layers: string[];
+  scores?: Record<string, number>;
+  evidence?: string[];
 }
 
 export interface ComplexityMetrics {

@@ -153,12 +153,17 @@ class ArchitectureDetector:
         total = sum(scores.values())
         confidence = round(scores[best] / total * 100, 2) if total > 0 else 0
 
+        # Sort and format evidence for the top pattern
+        top_evidence = evidence.get(best, [])
+        unique_evidence = list(dict.fromkeys(top_evidence))[:10]  # deduplicate, max 10
+
         return {
             "pattern": best,
             "confidence": min(confidence, 99.0),
             "description": self._get_description(best),
             "layers": self._get_layers(best),
             "scores": scores,
+            "evidence": unique_evidence,
         }
 
     def _get_description(self, pattern: str) -> str:

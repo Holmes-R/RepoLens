@@ -7,7 +7,7 @@ class DiagramService:
             "architecture": self._generate_architecture_diagram,
             "dependency": self._generate_dependency_diagram,
             "sequence": self._generate_sequence_diagram,
-            "component": self._generate_component_diagram,
+            "class": self._generate_class_diagram,
             "layer": self._generate_layer_diagram,
         }
         generator = generators.get(diagram_type, self._generate_architecture_diagram)
@@ -129,24 +129,31 @@ class DiagramService:
 
         return "\n".join(mermaid)
 
-    def _generate_component_diagram(self, data: Dict[str, Any]) -> str:
+    def _generate_class_diagram(self, data: Dict[str, Any]) -> str:
         modules = data.get("modules", [])
-        unique_dirs = set()
+        mermaid = ["classDiagram"]
+
+        classes_seen = set()
         for m in modules:
-            parts = m.get("path", "").split("/")
-            if len(parts) > 1:
-                unique_dirs.add(parts[0])
+            for cls in m.get("classes", []):
+                name = cls if isinstance(cls, str) else cls.get("name", "")
+                if name and name not in classes_seen:
+                    classes_seen.add(name)
 
-        mermaid = ["flowchart TD"]
-        mermaid.append("    subgraph Repo[Repository Components]")
-        mermaid.append("        direction TB")
-
-        # Add directories as components
-        for i, d in enumerate(sorted(unique_dirs)[:10]):
-            safe = f"dir_{i}"
-            mermaid.append(f"        {safe}[📁 {d}]")
-
-        mermaid.append("    end")
+        if classes_seen:
+            for name in classes_seen:
+                mermaid.append(f"    class {name}")
+        else:
+            langs = [ls["language"] for ls in data.get("language_stats", [])[:3]]
+            mermaid.append("    class RepoLensAnalysis {")
+            mermaid.append("        +analyzeRepository()")
+            mermaid.append("        +detectLanguages()")
+            mermaid.append("        +buildCallGraph()")
+            mermaid.append("    }")
+            mermaid.append("    class Languages {")
+            for lang in langs:
+                mermaid.append(f"        +{lang}")
+            mermaid.append("    }")
 
         return "\n".join(mermaid)
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getAnalysis, analyzeRepo } from '../api/client';
 import type { AnalysisResult } from '../types';
-import { Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow } from 'lucide-react';
+import { Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow, FileSearch, Puzzle, ArrowRight } from 'lucide-react';
 
 export function AnalysisPage() {
   const { id } = useParams<{ id: string }>();
@@ -171,13 +171,78 @@ export function AnalysisPage() {
                     <Box className="w-4 h-4 text-slate-500" />
                     <h4 className="font-medium text-slate-700">How It Was Detected</h4>
                   </div>
-                  <p className="text-sm text-slate-600 mb-3">
-                    The {result.architecture.pattern} pattern was identified by analyzing directory structure,
-                    file naming conventions, module relationships, and dependency patterns across the codebase.
+                  <p className="text-sm text-slate-600 mb-4">
+                    The architecture detector scanned <strong>{result.modules.length} modules</strong> across the codebase,
+                    analyzing directory structures, file names, and source code for architecture pattern indicators.
                   </p>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
+
+                  {result.architecture.scores && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        <Puzzle className="w-3 h-3" />
+                        Pattern Scores
+                      </div>
+                      <div className="space-y-1.5">
+                        {Object.entries(result.architecture.scores)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 5)
+                          .map(([pattern, score]) => {
+                            const isWinner = pattern === result.architecture!.pattern;
+                            const maxScore = Math.max(...Object.values(result.architecture!.scores!));
+                            const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
+                            return (
+                              <div key={pattern} className="flex items-center gap-2">
+                                <span className={`text-xs w-32 truncate shrink-0 ${isWinner ? 'text-purple-700 font-semibold' : 'text-slate-500'}`}>
+                                  {isWinner && <ArrowRight className="w-3 h-3 inline mr-0.5 text-purple-600" />}
+                                  {pattern}
+                                </span>
+                                <div className="flex-1 bg-slate-200 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full transition-all ${isWinner ? 'bg-purple-500' : 'bg-slate-300'}`}
+                                    style={{ width: `${barWidth}%` }} />
+                                </div>
+                                <span className="text-xs text-slate-400 w-8 text-right">{score.toFixed(1)}</span>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
+                  {result.architecture.evidence && result.architecture.evidence.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        <FileSearch className="w-3 h-3" />
+                        Key Evidence
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.architecture.evidence.slice(0, 8).map((item, i) => (
+                          <span key={i} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded-md font-mono">
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {result.frameworks.length > 0 && (
+                    <div className="mb-2">
+                      <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                        <Puzzle className="w-3 h-3" />
+                        Related Frameworks
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {result.frameworks.map((fw) => (
+                          <span key={fw.name} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-md">
+                            {fw.name}{fw.version ? ` v${fw.version}` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
                     <Workflow className="w-3 h-3" />
-                    Cross-referenced {result.modules.length} modules
+                    Detected via dir structure, file naming &amp; source patterns
                   </div>
                 </div>
               </div>

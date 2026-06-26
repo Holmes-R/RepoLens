@@ -5,7 +5,7 @@ import mermaid from 'mermaid';
 
 mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
 
-const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'component', 'layer'];
+const DIAGRAM_TYPES = ['architecture', 'dependency', 'sequence', 'class', 'layer'];
 
 export function DiagramsPage() {
   const [url, setUrl] = useState('');
@@ -44,7 +44,13 @@ export function DiagramsPage() {
       const diagRes = await getAllDiagrams(res.analysis_id);
       setDiagrams(diagRes.diagrams || {});
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to generate diagrams');
+      if (err.code === 'ERR_NETWORK' || err.message?.includes('NetworkError')) {
+        setError('Cannot connect to backend server. Make sure it is running on http://127.0.0.1:8000');
+      } else if (err.response?.status === 404) {
+        setError('Analysis not found. The server may have restarted — please submit again.');
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to generate diagrams');
+      }
     } finally {
       setLoading(false);
     }

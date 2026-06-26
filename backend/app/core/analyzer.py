@@ -95,6 +95,8 @@ class RepositoryAnalyzer:
                     confidence=arch_data["confidence"],
                     description=arch_data["description"],
                     layers=arch_data.get("layers", []),
+                    scores=arch_data.get("scores", {}),
+                    evidence=arch_data.get("evidence", []),
                 )
 
             # Complexity metrics
@@ -145,7 +147,7 @@ class RepositoryAnalyzer:
                 "architecture": self.diagram_service.generate_mermaid_diagram("architecture", diagram_data),
                 "dependency": self.diagram_service.generate_mermaid_diagram("dependency", diagram_data),
                 "sequence": self.diagram_service.generate_mermaid_diagram("sequence", diagram_data),
-                "component": self.diagram_service.generate_mermaid_diagram("component", diagram_data),
+                "class": self.diagram_service.generate_mermaid_diagram("class", diagram_data),
                 "layer": self.diagram_service.generate_mermaid_diagram("layer", diagram_data),
             }
 

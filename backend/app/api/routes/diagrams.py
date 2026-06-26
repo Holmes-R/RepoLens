@@ -45,7 +45,7 @@ async def get_diagram_types():
             {"id": "architecture", "name": "Architecture Diagram", "description": "High-level system architecture"},
             {"id": "dependency", "name": "Dependency Graph", "description": "External and internal dependencies"},
             {"id": "sequence", "name": "Sequence Diagram", "description": "Request lifecycle flow"},
-            {"id": "component", "name": "Component Diagram", "description": "Module and directory structure"},
+            {"id": "class", "name": "Class Diagram", "description": "Class hierarchy and relationships"},
             {"id": "layer", "name": "Layer Diagram", "description": "Architecture layer relationships"},
         ]
     }
