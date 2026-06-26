@@ -133,6 +133,51 @@ export function AnalysisPage() {
             </div>
           </div>
 
+          {result.contributors.length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-3 mb-4">
+                <Users className="w-6 h-6 text-green-600" />
+                <h3 className="text-lg font-semibold text-slate-900">Contributors</h3>
+                <span className="text-xs text-slate-400">({result.contributors.length} total)</span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
+                {result.contributors.map((c, i) => (
+                  <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+                    <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-sm font-bold shrink-0">
+                      {c.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-slate-900 truncate">{c.name}</p>
+                      <p className="text-xs text-slate-500">{c.commits} commit{c.commits !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.commit_messages.length > 0 && (
+            <div className="card">
+              <div className="flex items-center gap-3 mb-4">
+                <GitCommit className="w-6 h-6 text-sky-600" />
+                <h3 className="text-lg font-semibold text-slate-900">Recent Commits</h3>
+                <span className="text-xs text-slate-400">({result.commit_messages.length} shown)</span>
+              </div>
+              <div className="space-y-2 max-h-80 overflow-y-auto">
+                {result.commit_messages.map((c, i) => (
+                  <div key={i} className="flex items-start gap-3 text-sm p-2 rounded-lg hover:bg-slate-50">
+                    <span className="text-xs font-mono text-slate-400 mt-0.5 shrink-0">{c.sha}</span>
+                    <p className="flex-1 text-slate-700">{c.message}</p>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs text-slate-500">{c.author}</p>
+                      <p className="text-xs text-slate-400">{new Date(c.date).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {result.architecture && (
             <div className="card">
               <div className="flex items-center gap-3 mb-4">
@@ -257,10 +302,11 @@ export function AnalysisPage() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="card text-center">
-      <div className="text-3xl font-bold text-primary-600 mb-1">{value}</div>
+      {icon && <div className="flex justify-center mb-1">{icon}</div>}
+      <div className="text-2xl font-bold text-primary-600 mb-1">{value}</div>
       <div className="text-sm text-slate-500">{label}</div>
     </div>
   );
