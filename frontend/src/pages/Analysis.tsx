@@ -1,15 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getAnalysis, getHealthScore, analyzeRepo } from '../api/client';
-import type { AnalysisResult, HealthScores } from '../types';
-import { HealthScoreCard } from '../components/HealthScore/HealthScoreCard';
-import { Loader2, AlertCircle, Search } from 'lucide-react';
+import { getAnalysis, analyzeRepo } from '../api/client';
+import type { AnalysisResult } from '../types';
+import { Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow } from 'lucide-react';
 
 export function AnalysisPage() {
   const { id } = useParams<{ id: string }>();
   const [url, setUrl] = useState('');
   const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [health, setHealth] = useState<HealthScores | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -20,12 +18,8 @@ export function AnalysisPage() {
   const loadAnalysis = async (analysisId: string) => {
     setLoading(true);
     try {
-      const [res, healthRes] = await Promise.all([
-        getAnalysis(analysisId),
-        getHealthScore(analysisId),
-      ]);
+      const res = await getAnalysis(analysisId);
       setResult(res);
-      setHealth(healthRes.scores);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load analysis');
     } finally {
@@ -97,8 +91,7 @@ export function AnalysisPage() {
             {result.repository.description && <p className="text-slate-600 mb-4">{result.repository.description}</p>}
           </div>
 
-          <div className="grid grid-cols-4 gap-6">
-            <HealthScoreCard score={result.health_score ?? 0} />
+          <div className="grid grid-cols-3 gap-6">
             <StatCard label="Languages" value={result.language_stats.length.toString()} />
             <StatCard label="Dependencies" value={result.dependencies.length.toString()} />
             <StatCard label="Modules" value={result.modules.length.toString()} />
@@ -139,45 +132,55 @@ export function AnalysisPage() {
 
           {result.architecture && (
             <div className="card">
-              <h3 className="font-semibold text-slate-900 mb-4">Architecture</h3>
-              <div className="flex items-center gap-3 mb-3">
-                <span className="badge bg-purple-100 text-purple-700 text-sm px-3 py-1">{result.architecture.pattern}</span>
-                <span className="text-sm text-slate-500">Confidence: {result.architecture.confidence}%</span>
+              <div className="flex items-center gap-3 mb-4">
+                <Layers className="w-6 h-6 text-purple-600" />
+                <h3 className="text-lg font-semibold text-slate-900">Architecture Analysis</h3>
               </div>
-              <p className="text-slate-600 mb-3">{result.architecture.description}</p>
-              {result.architecture.layers.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {result.architecture.layers.map((layer) => (
-                    <span key={layer} className="badge bg-slate-100 text-slate-700">{layer}</span>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
-          {health && (
-            <div className="card">
-              <h3 className="font-semibold text-slate-900 mb-4">Health Score Breakdown</h3>
-              <div className="grid grid-cols-5 gap-4">
-                {Object.entries(health.details?.breakdown || {}).map(([key, val]) => (
-                  <div key={key} className="text-center">
-                    <div className="text-2xl font-bold text-slate-900">{Math.round(val.score)}</div>
-                    <div className="text-xs text-slate-500 capitalize">{key}</div>
-                  </div>
-                ))}
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-lg font-bold text-purple-700">{result.architecture.pattern}</span>
+                <span className="badge bg-purple-100 text-purple-700">{result.architecture.confidence}% confidence</span>
               </div>
-              {health.details?.recommendations && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Recommendations</h4>
-                  <ul className="space-y-1">
-                    {health.details.recommendations.map((rec, i) => (
-                      <li key={i} className="text-sm text-slate-600 flex items-start gap-2">
-                        <span className="text-amber-500 mt-0.5">{'\u25B6'}</span> {rec}
-                      </li>
-                    ))}
-                  </ul>
+
+              <p className="text-slate-600 mb-6">{result.architecture.description}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <GitBranch className="w-4 h-4 text-slate-500" />
+                    <h4 className="font-medium text-slate-700">Layers Detected</h4>
+                  </div>
+                  {result.architecture.layers.length > 0 ? (
+                    <div className="space-y-2">
+                      {result.architecture.layers.map((layer, i) => (
+                        <div key={layer} className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">
+                            {i + 1}
+                          </div>
+                          <span className="text-sm text-slate-700">{layer}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500">No specific layers identified</p>
+                  )}
                 </div>
-              )}
+
+                <div className="bg-slate-50 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Box className="w-4 h-4 text-slate-500" />
+                    <h4 className="font-medium text-slate-700">How It Was Detected</h4>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-3">
+                    The {result.architecture.pattern} pattern was identified by analyzing directory structure,
+                    file naming conventions, module relationships, and dependency patterns across the codebase.
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Workflow className="w-3 h-3" />
+                    Cross-referenced {result.modules.length} modules
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
