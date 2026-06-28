@@ -45,9 +45,7 @@ export function DiagramsPage() {
       getAllDiagrams(id).then((res) => {
         setDiagrams(res.diagrams || {});
         getAnalysis(id).then((a) => { setRepoName(a.repository.name); setRepoId(a.repository.id); }).catch(() => {});
-      }).catch(() => {
-        setError('Failed to load diagrams for this analysis');
-      }).finally(() => setLoadingExisting(false));
+      }).catch(() => {}).finally(() => setLoadingExisting(false));
     }
   }, [id]);
 

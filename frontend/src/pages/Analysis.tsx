@@ -101,8 +101,9 @@ export function AnalysisPage() {
     try {
       const res = await getAnalysis(analysisId);
       setResult(res);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load analysis');
+      setUrl(res.repository.url);
+    } catch (_err: any) {
+      // silently fall back to input form
     } finally {
       setLoading(false);
     }

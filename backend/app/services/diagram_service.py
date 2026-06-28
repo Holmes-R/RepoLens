@@ -120,7 +120,7 @@ class DiagramService:
         if len(layers) > 2:
             for layer in layers[1:-1]:
                 safe = layer.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
-                mermaid.append(f"    participant {safe} as <b>{layer}</b>")
+                mermaid.append(f"    participant {safe} as {layer}")
 
         mermaid.append("    participant DB as Database")
 
