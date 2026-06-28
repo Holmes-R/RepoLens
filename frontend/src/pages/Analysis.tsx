@@ -67,10 +67,13 @@ export function AnalysisPage() {
   }, [id]);
 
   useEffect(() => {
-    if (result && !result.diagrams && result.repository?.id) {
-      getAllDiagrams(result.repository.id).then(r => setDiagrams(r.diagrams || {})).catch(() => {});
-    } else if (result?.diagrams) {
-      setDiagrams(result.diagrams);
+    if (result) {
+      setUrl(result.repository.url);
+      if (!result.diagrams && result.repository?.id) {
+        getAllDiagrams(result.repository.id).then(r => setDiagrams(r.diagrams || {})).catch(() => {});
+      } else if (result?.diagrams) {
+        setDiagrams(result.diagrams);
+      }
     }
   }, [result]);
 

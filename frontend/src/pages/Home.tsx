@@ -59,12 +59,12 @@ export function HomePage() {
         </div>
         <div className="relative inline-block">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-4 text-transparent bg-clip-text bg-gradient-to-r from-primary-400 via-purple-400 to-sky-400" style={{ WebkitTextFillColor: 'transparent' }}>
-            Understand Any Repository
+            See Through Any Codebase
           </h1>
         </div>
         <p className="text-lg text-zinc-500 max-w-2xl mx-auto leading-relaxed">
-          Paste a GitHub URL and get instant architecture analysis, interactive diagrams,<br />
-          code metrics, and AI-powered insights about the codebase.
+          Paste any public GitHub URL — instantly visualize architecture, map dependencies,<br />
+          explore call graphs, and ask AI questions about the code.
         </p>
       </div>
 
