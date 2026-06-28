@@ -35,7 +35,7 @@ class DiagramService:
         if layers:
             for i, layer in enumerate(layers):
                 safe_name = layer.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
-                mermaid.append(f"        {safe_name}[{layer}]")
+                mermaid.append(f"        {safe_name}[<b>{layer}</b>]")
                 if i > 0:
                     prev = layers[i-1].replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
                     mermaid.append(f"        {prev} -->|communicates| {safe_name}")
@@ -47,7 +47,7 @@ class DiagramService:
             mermaid.append("    subgraph Languages[Languages]")
             for lang in lang_stats[:5]:
                 safe = lang["language"].replace(" ", "_")
-                mermaid.append(f"        {safe}[{lang['language']}: {lang['percentage']}%]")
+                mermaid.append(f"        {safe}[<b>{lang['language']}</b>: {lang['percentage']}%]")
             mermaid.append("    end")
 
         # Connect architecture to languages
@@ -90,7 +90,7 @@ class DiagramService:
             for d in sdeps:
                 safe_name = self._sanitize_mermaid_id(d["name"])
                 label = self._sanitize_mermaid_label(d["name"])
-                mermaid.append(f"            {safe_name}[{label}]")
+                mermaid.append(f"            {safe_name}[<b>{label}</b>]")
             mermaid.append("        end")
 
         mermaid.append("    end")
@@ -100,7 +100,7 @@ class DiagramService:
             mermaid.append("    subgraph Lang[Languages]")
             for lang in lang_stats[:3]:
                 safe = lang["language"].replace(" ", "_")
-                mermaid.append(f"        {safe}[{lang['language']}]")
+                mermaid.append(f"        {safe}[<b>{lang['language']}</b>]")
             mermaid.append("    end")
 
         return "\n".join(mermaid)
@@ -120,7 +120,7 @@ class DiagramService:
         if len(layers) > 2:
             for layer in layers[1:-1]:
                 safe = layer.replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
-                mermaid.append(f"    participant {safe} as {layer}")
+                mermaid.append(f"    participant {safe} as <b>{layer}</b>")
 
         mermaid.append("    participant DB as Database")
 
@@ -173,9 +173,9 @@ class DiagramService:
                     safe = f"{safe}_{current_id}"
                 added.add(safe)
                 if is_leaf:
-                    mermaid.append(f"    {current_id}[{name}]")
+                    mermaid.append(f"    {current_id}[<b>{name}</b>]")
                 else:
-                    mermaid.append(f"    {current_id}[{name}/]")
+                    mermaid.append(f"    {current_id}[<b>{name}</b>/]")
                 if parent_id is not None:
                     mermaid.append(f"    {parent_id} --> {current_id}")
                 render(children, current_id, depth + 1)
@@ -195,7 +195,7 @@ class DiagramService:
         mermaid = ["flowchart LR"]
         for i, layer in enumerate(layers):
             safe = f"L{i}"
-            mermaid.append(f"    {safe}[{layer}]")
+            mermaid.append(f"    {safe}[<b>{layer}</b>]")
             if i > 0:
                 mermaid.append(f"    L{i-1} --> L{i}")
 

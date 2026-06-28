@@ -4,32 +4,54 @@
 
 @layer base {
   body {
-    @apply antialiased text-slate-800;
+    @apply antialiased bg-[#0a0a0b] text-zinc-300;
+  }
+  ::selection {
+    @apply bg-primary-900/50 text-primary-300;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-[#0a0a0b];
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-zinc-800 hover:bg-zinc-700;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-6 py-3 rounded-lg font-semibold 
-           hover:bg-primary-700 transition-all duration-200 
-           shadow-lg shadow-primary-200 hover:shadow-primary-300
+    @apply bg-primary-600 text-white px-6 py-3 font-semibold 
+           hover:bg-primary-500 transition-colors duration-150
            disabled:opacity-50 disabled:cursor-not-allowed;
   }
-  
   .btn-secondary {
-    @apply bg-white text-slate-700 px-6 py-3 rounded-lg font-semibold
-           border border-slate-300 hover:bg-slate-50 transition-all duration-200;
+    @apply bg-zinc-900 text-zinc-300 px-6 py-3 font-semibold
+           border border-zinc-800 hover:bg-zinc-800 transition-colors duration-150;
   }
-
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-slate-200 p-6;
+    @apply bg-zinc-900 border border-zinc-800 p-5;
   }
-  
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center px-2.5 py-0.5 text-xs font-medium bg-zinc-800 text-zinc-400;
+  }
+  .input {
+    @apply bg-zinc-900 border border-zinc-800 px-4 py-3 text-zinc-200 
+           placeholder-zinc-600 focus:outline-none focus:border-primary-700 transition-colors;
+  }
+  .tab-active {
+    @apply bg-primary-900/30 text-primary-400 border-b-2 border-primary-500;
+  }
+  .tab-inactive {
+    @apply text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900 border-b-2 border-transparent;
   }
 }
 
 .mermaid svg {
   @apply max-w-full;
+}
+.mermaid {
+  @apply bg-zinc-950 p-4;
 }

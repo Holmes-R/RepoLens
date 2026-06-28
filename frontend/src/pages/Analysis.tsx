@@ -1,16 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { getAnalysis, analyzeRepo, getAllDiagrams } from '../api/client';
 import type { AnalysisResult, DatabaseTable } from '../types';
 import mermaid from 'mermaid';
 import {
   Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow, FileSearch,
   Puzzle, ArrowRight, Star, GitFork, Users, GitCommit, Database, FolderTree,
-  Code2, Download, Network, X, ChevronRight, ChevronDown, Table2,
-  BookOpen, BarChart3
+  Code2, Download, X, ChevronRight, ChevronDown, Table2,
+  BookOpen, BarChart3, MessageSquare
 } from 'lucide-react';
 
-mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'loose' });
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  securityLevel: 'loose',
+  themeVariables: {
+    background: '#09090b',
+    primaryColor: '#1e1b4b',
+    primaryTextColor: '#e4e4e7',
+    primaryBorderColor: '#312e81',
+    lineColor: '#6366f1',
+    secondaryColor: '#27272a',
+    tertiaryColor: '#18181b',
+    clusterBkg: '#18181b',
+    clusterBorder: '#27272a',
+    nodeTextColor: '#e4e4e7',
+    titleColor: '#e4e4e7',
+    edgeLabelBackground: '#27272a',
+    nodeBorder: '#312e81',
+    mainBkg: '#09090b',
+  },
+});
 
 const DIAGRAM_TABS = [
   { key: 'architecture', label: 'Architecture', icon: Layers },
@@ -25,8 +45,8 @@ const INFO_TABS = [
   { key: 'architecture', label: 'Architecture', icon: Layers },
   { key: 'dependencies', label: 'Dependencies', icon: GitBranch },
   { key: 'database', label: 'Database', icon: Database },
-  { key: 'callgraph', label: 'Call Graph', icon: Network },
-  { key: 'diagrams', label: 'Diagrams', icon: FileSearch },
+  { key: 'callgraph', label: 'Call Graph', icon: Workflow },
+  { key: 'diagrams', label: 'Diagrams', icon: FolderTree },
   { key: 'contributors', label: 'Contributors', icon: Users },
 ] as const;
 
@@ -62,11 +82,11 @@ export function AnalysisPage() {
       setTimeout(() => {
         const el = document.getElementById(key);
         if (el) {
-          el.innerHTML = '<div class="text-slate-400 text-sm animate-pulse">Rendering...</div>';
+          el.innerHTML = '<div class="text-zinc-600 text-sm animate-pulse">Rendering...</div>';
           mermaid.render(`svg-${activeDiagram}`, diagrams[activeDiagram])
             .then(({ svg }) => { el.innerHTML = svg; })
             .catch((err: Error) => {
-              el.innerHTML = `<pre class="text-red-500 text-xs whitespace-pre-wrap">${err.message || 'Failed to render'}</pre>`;
+              el.innerHTML = `<pre class="text-red-400 text-xs">${err.message || 'Failed to render'}</pre>`;
             });
         }
       }, 50);
@@ -128,8 +148,8 @@ export function AnalysisPage() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-primary-600 mx-auto mb-4" />
-          <p className="text-slate-600">Analyzing repository...</p>
+          <Loader2 className="w-10 h-10 animate-spin text-primary-500 mx-auto mb-3" />
+          <p className="text-sm text-zinc-500">Analyzing repository...</p>
         </div>
       </div>
     );
@@ -137,78 +157,84 @@ export function AnalysisPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <form onSubmit={handleSubmit} className="flex-1 flex gap-3">
+      <div className="flex items-center gap-2 mb-5">
+        <form onSubmit={handleSubmit} className="flex-1 flex gap-2">
           <input
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://github.com/user/repository"
-            className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 outline-none"
+            className="input flex-1 text-sm"
           />
-          <button type="submit" disabled={loading} className="btn-primary flex items-center gap-2">
-            <Search className="w-4 h-4" /> {loading ? '...' : 'Analyze'}
+          <button type="submit" disabled={loading} className="btn-primary text-sm flex items-center gap-2">
+            <Search className="w-3.5 h-3.5" /> {loading ? '...' : 'Analyze'}
           </button>
         </form>
         {result && (
-          <button onClick={exportReport} className="btn-secondary flex items-center gap-2">
-            <Download className="w-4 h-4" /> Export
+          <button onClick={exportReport} className="btn-secondary text-sm flex items-center gap-2">
+            <Download className="w-3.5 h-3.5" /> Export
           </button>
         )}
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-red-600 bg-red-50 px-4 py-3 rounded-lg mb-6">
-          <AlertCircle className="w-5 h-5" /> {error}
+        <div className="flex items-center gap-2 text-sm text-red-400 bg-red-900/20 border border-red-800/50 px-3 py-2 mb-5">
+          <AlertCircle className="w-4 h-4 shrink-0" /> {error}
         </div>
       )}
 
       {result && (
-        <div className="space-y-6">
+        <div className="space-y-5">
           <div className="card">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">{result.repository.name}</h2>
-                <a href={result.repository.url} className="text-primary-600 text-sm hover:underline" target="_blank" rel="noreferrer">
+            <div className="flex items-start justify-between mb-3">
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-white truncate">{result.repository.name}</h2>
+                <a href={result.repository.url} className="text-xs text-primary-500 hover:underline" target="_blank" rel="noreferrer">
                   {result.repository.url}
                 </a>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`badge ${result.repository.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+              <div className="flex items-center gap-2 shrink-0">
+                <Link to={`/diagrams/${result.repository.id}`} className="flex items-center gap-1.5 text-xs text-purple-500 hover:text-purple-400 bg-purple-900/20 border border-purple-800/30 px-2.5 py-1.5 transition-colors">
+                  <FolderTree className="w-3.5 h-3.5" /> Diagrams
+                </Link>
+                <Link to={`/chat/${result.repository.id}`} className="flex items-center gap-1.5 text-xs text-primary-500 hover:text-primary-400 bg-primary-900/20 border border-primary-800/30 px-2.5 py-1.5 transition-colors">
+                  <MessageSquare className="w-3.5 h-3.5" /> Chat
+                </Link>
+                <span className={`badge ${result.repository.status === 'completed' ? 'bg-green-900/30 text-green-400 border border-green-800/50' : 'bg-yellow-900/30 text-yellow-400 border border-yellow-800/50'}`}>
                   {result.repository.status}
                 </span>
               </div>
             </div>
-            {result.repository.description && <p className="text-slate-600 mb-4">{result.repository.description}</p>}
+            {result.repository.description && <p className="text-sm text-zinc-500">{result.repository.description}</p>}
           </div>
 
-          <div className="grid grid-cols-6 gap-4">
-            <StatCard label="Stars" value={result.repository.stars.toLocaleString()} icon={<Star className="w-4 h-4 text-amber-500" />} />
-            <StatCard label="Forks" value={result.repository.forks.toLocaleString()} icon={<GitFork className="w-4 h-4 text-blue-500" />} />
-            <StatCard label="Contributors" value={result.contributors.length.toString()} icon={<Users className="w-4 h-4 text-green-500" />} />
-            <StatCard label="Languages" value={result.language_stats.length.toString()} icon={<Code2 className="w-4 h-4 text-purple-500" />} />
-            <StatCard label="Dependencies" value={result.dependencies.length.toString()} icon={<Box className="w-4 h-4 text-sky-500" />} />
-            <StatCard label="Modules" value={result.modules.length.toString()} icon={<FolderTree className="w-4 h-4 text-orange-500" />} />
+          <div className="grid grid-cols-6 gap-px bg-zinc-800">
+            <StatCard label="Stars" value={result.repository.stars.toLocaleString()} icon={<Star className="w-3.5 h-3.5 text-amber-500" />} />
+            <StatCard label="Forks" value={result.repository.forks.toLocaleString()} icon={<GitFork className="w-3.5 h-3.5 text-blue-500" />} />
+            <StatCard label="Contributors" value={result.contributors.length.toString()} icon={<Users className="w-3.5 h-3.5 text-green-500" />} />
+            <StatCard label="Languages" value={result.language_stats.length.toString()} icon={<Code2 className="w-3.5 h-3.5 text-purple-500" />} />
+            <StatCard label="Dependencies" value={result.dependencies.length.toString()} icon={<Box className="w-3.5 h-3.5 text-sky-500" />} />
+            <StatCard label="Modules" value={result.modules.length.toString()} icon={<FolderTree className="w-3.5 h-3.5 text-orange-500" />} />
           </div>
 
-          <div className="flex gap-2 border-b border-slate-200 pb-2 overflow-x-auto">
+          <div className="flex gap-6 border-b border-zinc-800">
             {INFO_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.key}
                   onClick={() => setActiveTab(tab.key)}
-                  className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-                    activeTab === tab.key ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                  className={`flex items-center gap-1.5 pb-2 text-xs font-medium transition-colors ${
+                    activeTab === tab.key ? 'tab-active' : 'tab-inactive'
                   }`}
                 >
-                  <Icon className="w-4 h-4" /> {tab.label}
+                  <Icon className="w-3.5 h-3.5" /> {tab.label}
                 </button>
               );
             })}
           </div>
 
-          <div className="space-y-6">
+          <div>
             {activeTab === 'overview' && (
               <OverviewTab result={result} search={searchQuery} onSearchChange={setSearchQuery} />
             )}
@@ -229,25 +255,25 @@ export function AnalysisPage() {
             )}
             {activeTab === 'diagrams' && (
               <div>
-                <div className="flex gap-2 mb-4">
+                <div className="flex gap-1 mb-4">
                   {DIAGRAM_TABS.map((tab) => {
                     const Icon = tab.icon;
                     return (
                       <button
                         key={tab.key}
                         onClick={() => { setActiveDiagram(tab.key); diagramRendered.current.delete(`diagram-${tab.key}`); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          activeDiagram === tab.key ? 'bg-primary-100 text-primary-700' : 'text-slate-500 hover:text-slate-700'
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                          activeDiagram === tab.key ? 'bg-primary-900/30 text-primary-400' : 'text-zinc-500 hover:text-zinc-300 bg-zinc-900'
                         }`}
                       >
-                        <Icon className="w-3.5 h-3.5" /> {tab.label}
+                        <Icon className="w-3 h-3 inline mr-1" /> {tab.label}
                       </button>
                     );
                   })}
                 </div>
                 <div className="card">
-                  <h3 className="text-lg font-semibold text-slate-900 mb-4 capitalize">{activeDiagram} Diagram</h3>
-                  <div id={`diagram-${activeDiagram}`} className="bg-white rounded-lg p-4 overflow-auto min-h-[400px]" />
+                  <h3 className="text-sm font-semibold text-white mb-4 uppercase tracking-wider">{activeDiagram} Diagram</h3>
+                  <div id={`diagram-${activeDiagram}`} className="bg-zinc-950 p-4 min-h-[400px]" />
                 </div>
               </div>
             )}
@@ -274,64 +300,63 @@ function OverviewTab({ result, search, onSearchChange }: {
   return (
     <div>
       {(result.modules.length > 0 || result.commit_messages.length > 0 || result.language_stats.length > 0) && (
-        <div className="card mb-6">
+        <div className="card mb-5">
           <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+            <Search className="w-4 h-4 text-zinc-600 shrink-0" />
             <input
               type="text"
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Search repository entities..."
-              className="flex-1 text-sm border-0 outline-none bg-transparent"
+              className="flex-1 text-sm bg-transparent border-0 outline-none text-zinc-300 placeholder-zinc-600"
             />
             {search && (
-              <button onClick={() => onSearchChange('')} className="text-slate-400 hover:text-slate-600">
+              <button onClick={() => onSearchChange('')} className="text-zinc-600 hover:text-zinc-400">
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
         </div>
       )}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-2 gap-5">
         <div className="card">
-          <h3 className="font-semibold text-slate-900 mb-4">Languages ({filteredLanguages.length})</h3>
-          <div className="space-y-3">
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Languages ({filteredLanguages.length})</h3>
+          <div className="space-y-2.5">
             {filteredLanguages.map((lang) => (
               <div key={lang.language}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium">{lang.language}</span>
-                  <span className="text-slate-500">{lang.percentage}% ({lang.files} files)</span>
+                <div className="flex justify-between text-xs mb-0.5">
+                  <span className="text-zinc-300">{lang.language}</span>
+                  <span className="text-zinc-500">{lang.percentage}% ({lang.files} files)</span>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="bg-primary-500 h-2 rounded-full transition-all" style={{ width: `${lang.percentage}%` }} />
+                <div className="w-full bg-zinc-800 h-1">
+                  <div className="bg-primary-700 h-1" style={{ width: `${lang.percentage}%` }} />
                 </div>
               </div>
             ))}
           </div>
         </div>
         <div className="card">
-          <h3 className="font-semibold text-slate-900 mb-4">Complexity</h3>
+          <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Complexity</h3>
           {result.complexity ? (
-            <div className="grid grid-cols-2 gap-4">
-              <MetricItem label="Total Files" value={result.complexity.total_files} />
-              <MetricItem label="Total Lines" value={result.complexity.total_lines} />
+            <div className="grid grid-cols-2 gap-3">
+              <MetricItem label="Files" value={result.complexity.total_files} />
+              <MetricItem label="Lines" value={result.complexity.total_lines} />
               <MetricItem label="Functions" value={result.complexity.total_functions} />
               <MetricItem label="Classes" value={result.complexity.total_classes} />
-              <MetricItem label="Avg Function Length" value={`${result.complexity.avg_function_length} lines`} />
+              <MetricItem label="Avg Function" value={`${result.complexity.avg_function_length} lines`} />
               <MetricItem label="Avg Complexity" value={result.complexity.avg_complexity.toFixed(2)} />
             </div>
           ) : (
-            <p className="text-sm text-slate-500">No complexity data</p>
+            <p className="text-xs text-zinc-600">No complexity data</p>
           )}
         </div>
         {filteredFrameworks.length > 0 && (
           <div className="card">
-            <h3 className="font-semibold text-slate-900 mb-3">Frameworks ({filteredFrameworks.length})</h3>
-            <div className="flex flex-wrap gap-2">
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Frameworks ({filteredFrameworks.length})</h3>
+            <div className="flex flex-wrap gap-1.5">
               {filteredFrameworks.map((fw) => (
-                <span key={fw.name} className="text-sm bg-purple-50 text-purple-700 px-3 py-1.5 rounded-lg">
+                <span key={fw.name} className="text-xs bg-primary-900/20 text-primary-400 border border-primary-800/30 px-2 py-1">
                   {fw.name}{fw.version ? ` v${fw.version}` : ''}
-                  <span className="ml-1.5 text-xs text-purple-400">({fw.category})</span>
                 </span>
               ))}
             </div>
@@ -340,18 +365,15 @@ function OverviewTab({ result, search, onSearchChange }: {
         {filteredCommits.length > 0 && (
           <div className="card">
             <div className="flex items-center gap-2 mb-3">
-              <GitCommit className="w-5 h-5 text-sky-600" />
-              <h3 className="font-semibold text-slate-900">Recent Commits ({filteredCommits.length})</h3>
+              <GitCommit className="w-3.5 h-3.5 text-sky-500" />
+              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Recent Commits ({filteredCommits.length})</h3>
             </div>
-            <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            <div className="space-y-1 max-h-60 overflow-y-auto">
               {filteredCommits.map((c, i) => (
-                <div key={i} className="flex items-start gap-2 text-sm p-2 rounded-lg hover:bg-slate-50">
-                  <span className="text-xs font-mono text-slate-400 mt-0.5 shrink-0">{c.sha}</span>
-                  <p className="flex-1 text-slate-700 truncate">{c.message}</p>
-                  <div className="text-right shrink-0">
-                    <p className="text-xs text-slate-500">{c.author}</p>
-                    <p className="text-xs text-slate-400">{new Date(c.date).toLocaleDateString()}</p>
-                  </div>
+                <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-zinc-800 last:border-0">
+                  <span className="text-zinc-600 font-mono shrink-0">{c.sha.slice(0, 7)}</span>
+                  <p className="flex-1 text-zinc-400 truncate">{c.message}</p>
+                  <span className="text-zinc-600 shrink-0">{c.author}</span>
                 </div>
               ))}
             </div>
@@ -368,107 +390,84 @@ function ArchitectureTab({ result }: { result: AnalysisResult }) {
   return (
     <div className="card">
       <div className="flex items-center gap-3 mb-4">
-        <Layers className="w-6 h-6 text-purple-600" />
-        <h3 className="text-lg font-semibold text-slate-900">Architecture Analysis</h3>
+        <Layers className="w-5 h-5 text-purple-400" />
+        <h3 className="text-sm font-semibold text-white uppercase tracking-wider">Architecture Analysis</h3>
       </div>
       <div className="flex items-center gap-3 mb-4">
-        <span className="text-lg font-bold text-purple-700">{arch.pattern}</span>
-        <span className="badge bg-purple-100 text-purple-700">{arch.confidence}% confidence</span>
+        <span className="text-base font-bold text-purple-400">{arch.pattern}</span>
+        <span className="badge bg-purple-900/30 text-purple-400 border border-purple-800/50">{arch.confidence}%</span>
       </div>
-      <p className="text-slate-600 mb-6">{arch.description}</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-slate-50 rounded-lg p-4">
+      <p className="text-sm text-zinc-400 mb-5">{arch.description}</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="bg-zinc-800/50 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <GitBranch className="w-4 h-4 text-slate-500" />
-            <h4 className="font-medium text-slate-700">Layers Detected</h4>
+            <GitBranch className="w-3.5 h-3.5 text-zinc-500" />
+            <h4 className="text-xs font-semibold text-zinc-500 uppercase">Layers Detected</h4>
           </div>
           {arch.layers.length > 0 ? (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {arch.layers.map((layer, i) => (
                 <div key={layer} className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">
-                    {i + 1}
-                  </div>
-                  <span className="text-sm text-slate-700">{layer}</span>
+                  <span className="w-5 h-5 bg-purple-900/30 text-purple-400 border border-purple-800/50 flex items-center justify-center text-[10px] font-bold">{i + 1}</span>
+                  <span className="text-sm text-zinc-300">{layer}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-slate-500">No specific layers</p>
+            <p className="text-xs text-zinc-600">No specific layers</p>
           )}
         </div>
-        <div className="bg-slate-50 rounded-lg p-4">
+        <div className="bg-zinc-800/50 p-4">
           <div className="flex items-center gap-2 mb-3">
-            <Box className="w-4 h-4 text-slate-500" />
-            <h4 className="font-medium text-slate-700">How It Was Detected</h4>
+            <Box className="w-3.5 h-3.5 text-zinc-500" />
+            <h4 className="text-xs font-semibold text-zinc-500 uppercase">How It Was Detected</h4>
           </div>
-          <p className="text-sm text-slate-600 mb-4">
-            Scanned <strong>{result.modules.length} modules</strong> across the codebase.
-          </p>
+          <p className="text-xs text-zinc-500 mb-3">Scanned <strong className="text-zinc-300">{result.modules.length} modules</strong> across the codebase.</p>
           {arch.scores && Object.keys(arch.scores).length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                <Puzzle className="w-3 h-3" />
-                Pattern Scores
-              </div>
-              <div className="space-y-1.5">
-                {Object.entries(arch.scores)
-                  .sort(([, a], [, b]) => b - a)
-                  .slice(0, 5)
-                  .map(([pattern, score]) => {
-                    const isWinner = pattern === arch.pattern;
-                    const maxScore = Math.max(...Object.values(arch.scores!));
-                    const barWidth = maxScore > 0 ? (score / maxScore) * 100 : 0;
-                    return (
-                      <div key={pattern} className="flex items-center gap-2">
-                        <span className={`text-xs w-32 truncate shrink-0 ${isWinner ? 'text-purple-700 font-semibold' : 'text-slate-500'}`}>
-                          {isWinner && <ArrowRight className="w-3 h-3 inline mr-0.5 text-purple-600" />}
-                          {pattern}
-                        </span>
-                        <div className="flex-1 bg-slate-200 rounded-full h-1.5">
-                          <div className={`h-1.5 rounded-full transition-all ${isWinner ? 'bg-purple-500' : 'bg-slate-300'}`}
-                            style={{ width: `${barWidth}%` }} />
-                        </div>
-                        <span className="text-xs text-slate-400 w-8 text-right">{score.toFixed(1)}</span>
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold text-zinc-600 uppercase mb-1.5">Pattern Scores</p>
+              <div className="space-y-1">
+                {Object.entries(arch.scores).sort(([, a], [, b]) => b - a).slice(0, 5).map(([pattern, score]) => {
+                  const isWinner = pattern === arch.pattern;
+                  const max = Math.max(...Object.values(arch.scores!));
+                  const w = max > 0 ? (score / max) * 100 : 0;
+                  return (
+                    <div key={pattern} className="flex items-center gap-2">
+                      <span className={`text-[11px] w-28 truncate shrink-0 ${isWinner ? 'text-purple-400 font-semibold' : 'text-zinc-500'}`}>
+                        {isWinner && <ArrowRight className="w-2.5 h-2.5 inline mr-0.5 text-purple-400" />}{pattern}
+                      </span>
+                      <div className="flex-1 bg-zinc-800 h-1">
+                        <div className={`h-1 ${isWinner ? 'bg-purple-500' : 'bg-zinc-700'}`} style={{ width: `${w}%` }} />
                       </div>
-                    );
-                  })}
+                      <span className="text-[10px] text-zinc-600 w-6 text-right">{score.toFixed(1)}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
           {arch.evidence && arch.evidence.length > 0 && (
-            <div className="mb-4">
-              <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                <FileSearch className="w-3 h-3" />
-                Key Evidence
-              </div>
-              <div className="flex flex-wrap gap-1.5">
+            <div className="mb-3">
+              <p className="text-[10px] font-semibold text-zinc-600 uppercase mb-1.5">Key Evidence</p>
+              <div className="flex flex-wrap gap-1">
                 {arch.evidence.slice(0, 8).map((item, i) => (
-                  <span key={i} className="text-xs bg-white border border-slate-200 text-slate-600 px-2 py-1 rounded-md font-mono">
-                    {item}
-                  </span>
+                  <span key={i} className="text-[10px] bg-zinc-900 border border-zinc-800 text-zinc-500 px-1.5 py-0.5">{item}</span>
                 ))}
               </div>
             </div>
           )}
           {result.frameworks.length > 0 && (
             <div className="mb-2">
-              <div className="flex items-center gap-1.5 mb-2 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                <Puzzle className="w-3 h-3" />
-                Related Frameworks
-              </div>
-              <div className="flex flex-wrap gap-1.5">
+              <p className="text-[10px] font-semibold text-zinc-600 uppercase mb-1.5">Related Frameworks</p>
+              <div className="flex flex-wrap gap-1">
                 {result.frameworks.map((fw) => (
-                  <span key={fw.name} className="text-xs bg-purple-50 text-purple-700 px-2 py-1 rounded-md">
-                    {fw.name}{fw.version ? ` v${fw.version}` : ''}
-                  </span>
+                  <span key={fw.name} className="text-[10px] bg-purple-900/20 text-purple-400 border border-purple-800/30 px-1.5 py-0.5">{fw.name}{fw.version ? ` v${fw.version}` : ''}</span>
                 ))}
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2 text-xs text-slate-500 pt-2 border-t border-slate-200">
-            <Workflow className="w-3 h-3" />
-            Detected via dir structure, file naming & source patterns
+          <div className="flex items-center gap-1.5 text-[10px] text-zinc-600 pt-2 border-t border-zinc-800">
+            <Workflow className="w-3 h-3" /> Detected via dir structure, file naming & source patterns
           </div>
         </div>
       </div>
@@ -482,19 +481,19 @@ function DependenciesTab({ deps, searchQuery }: { deps: { name: string; version:
   const displayDeps = expanded ? filtered : filtered.slice(0, 50);
   return (
     <div className="card">
-      <h3 className="font-semibold text-slate-900 mb-4">Dependencies ({filtered.length})</h3>
+      <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Dependencies ({filtered.length})</h3>
       {filtered.length === 0 ? (
         <div className="text-center py-8">
-          <Box className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500">No dependencies detected</p>
-          <p className="text-xs text-slate-400 mt-1">Looked for package.json, requirements.txt, Cargo.toml, go.mod, Gemfile, pubspec.yaml, pom.xml</p>
+          <Box className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
+          <p className="text-xs text-zinc-600">No dependencies detected</p>
+          <p className="text-[10px] text-zinc-700 mt-1">Scanned package.json, requirements.txt, Cargo.toml, go.mod, Gemfile, pubspec.yaml, pom.xml</p>
         </div>
       ) : (
         <>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-200">
+                <tr className="text-left text-zinc-600 border-b border-zinc-800">
                   <th className="pb-2 font-medium">Name</th>
                   <th className="pb-2 font-medium">Version</th>
                   <th className="pb-2 font-medium">Source</th>
@@ -502,17 +501,17 @@ function DependenciesTab({ deps, searchQuery }: { deps: { name: string; version:
               </thead>
               <tbody>
                 {displayDeps.map((d, i) => (
-                  <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
-                    <td className="py-2 text-slate-900 font-medium">{d.name}</td>
-                    <td className="py-2 text-slate-500">{d.version}</td>
-                    <td className="py-2"><span className="badge bg-slate-100 text-slate-600">{d.source}</span></td>
+                  <tr key={i} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                    <td className="py-1.5 text-zinc-300 font-medium">{d.name}</td>
+                    <td className="py-1.5 text-zinc-500">{d.version}</td>
+                    <td className="py-1.5"><span className="badge text-[10px]">{d.source}</span></td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           {filtered.length > 50 && (
-            <button onClick={() => setExpanded(!expanded)} className="mt-3 text-sm text-primary-600 hover:underline">
+            <button onClick={() => setExpanded(!expanded)} className="mt-2 text-xs text-primary-500 hover:underline">
               {expanded ? 'Show less' : `Show all ${filtered.length} dependencies`}
             </button>
           )}
@@ -526,48 +525,43 @@ function DatabaseTab({ tables }: { tables: DatabaseTable[] }) {
   const [expandedTable, setExpandedTable] = useState<string | null>(null);
   if (tables.length === 0) {
     return (
-      <div className="card text-center py-12">
-        <Table2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <p className="text-slate-500">No database schema detected</p>
-        <p className="text-xs text-slate-400 mt-1">Scanned for .sql, Laravel/Alembic migrations, Django/SQLAlchemy models, TypeORM entities, Prisma schemas</p>
+      <div className="card text-center py-10">
+        <Table2 className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
+        <p className="text-xs text-zinc-600">No database schema detected</p>
+        <p className="text-[10px] text-zinc-700 mt-1">Scanned SQL files, migrations, ORM models, Prisma schemas</p>
       </div>
     );
   }
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {tables.map((tbl) => (
         <div key={tbl.name} className="card">
-          <button
-            onClick={() => setExpandedTable(expandedTable === tbl.name ? null : tbl.name)}
-            className="flex items-center gap-2 w-full text-left"
-          >
-            {expandedTable === tbl.name ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
-            <Database className="w-4 h-4 text-blue-500" />
-            <span className="font-semibold text-slate-900">{tbl.name}</span>
-            <span className="text-xs text-slate-400">({tbl.columns.length} columns{tbl.foreign_keys.length > 0 ? `, ${tbl.foreign_keys.length} FKs` : ''})</span>
+          <button onClick={() => setExpandedTable(expandedTable === tbl.name ? null : tbl.name)} className="flex items-center gap-2 w-full text-left">
+            {expandedTable === tbl.name ? <ChevronDown className="w-3.5 h-3.5 text-zinc-600" /> : <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />}
+            <Database className="w-3.5 h-3.5 text-blue-500" />
+            <span className="text-sm font-semibold text-white">{tbl.name}</span>
+            <span className="text-[10px] text-zinc-600">({tbl.columns.length} cols{tbl.foreign_keys.length > 0 ? `, ${tbl.foreign_keys.length} FK` : ''})</span>
           </button>
           {expandedTable === tbl.name && (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-slate-500 border-b border-slate-200">
-                    <th className="pb-2 font-medium">Column</th>
-                    <th className="pb-2 font-medium">Type</th>
-                    <th className="pb-2 font-medium">PK</th>
-                    <th className="pb-2 font-medium">FK</th>
+                  <tr className="text-left text-zinc-600 border-b border-zinc-800">
+                    <th className="pb-1.5 font-medium">Column</th>
+                    <th className="pb-1.5 font-medium">Type</th>
+                    <th className="pb-1.5 font-medium">PK</th>
+                    <th className="pb-1.5 font-medium">FK</th>
                   </tr>
                 </thead>
                 <tbody>
                   {tbl.columns.map((col) => {
                     const fk = tbl.foreign_keys.find(f => f.column === col.name);
                     return (
-                      <tr key={col.name} className="border-b border-slate-100">
-                        <td className="py-2 text-slate-900 font-medium">{col.name}</td>
-                        <td className="py-2 text-slate-500"><code>{col.type}</code></td>
-                        <td className="py-2">{col.primary_key ? <span className="text-amber-500 text-xs font-bold">PK</span> : ''}</td>
-                        <td className="py-2 text-xs text-blue-500">
-                          {fk ? `${fk.references_table}.${fk.references_column}` : ''}
-                        </td>
+                      <tr key={col.name} className="border-b border-zinc-800/30">
+                        <td className="py-1 text-zinc-300 font-medium">{col.name}</td>
+                        <td className="py-1 text-zinc-500"><strong className="font-semibold">{col.type}</strong></td>
+                        <td className="py-1">{col.primary_key ? <span className="text-[10px] text-amber-500 font-bold">PK</span> : ''}</td>
+                        <td className="py-1 text-[10px] text-blue-400">{fk ? `${fk.references_table}.${fk.references_column}` : ''}</td>
                       </tr>
                     );
                   })}
@@ -583,38 +577,33 @@ function DatabaseTab({ tables }: { tables: DatabaseTable[] }) {
 
 function CallGraphTab({ callGraph, search }: { callGraph: Record<string, string[]>; search: string }) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const entries = Object.entries(callGraph).filter(([fn]) =>
-    !search || fn.toLowerCase().includes(search.toLowerCase())
-  );
+  const entries = Object.entries(callGraph).filter(([fn]) => !search || fn.toLowerCase().includes(search.toLowerCase()));
   if (entries.length === 0) {
     return (
-      <div className="card text-center py-12">
-        <Network className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-        <p className="text-slate-500">No call graph data available</p>
-        <p className="text-xs text-slate-400 mt-1">Call graphs are generated for .py, .js, .ts, .go, .rs, .java, .php, .rb files</p>
+      <div className="card text-center py-10">
+        <Workflow className="w-10 h-10 text-zinc-700 mx-auto mb-2" />
+        <p className="text-xs text-zinc-600">No call graph data</p>
+        <p className="text-[10px] text-zinc-700 mt-1">Generated for .py, .js, .ts, .go, .rs, .java, .php, .rb files</p>
       </div>
     );
   }
   return (
     <div className="card">
-      <h3 className="font-semibold text-slate-900 mb-4">Call Graph ({entries.length} functions)</h3>
-      <div className="space-y-1">
+      <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Call Graph ({entries.length} functions)</h3>
+      <div className="space-y-0.5">
         {entries.slice(0, 100).map(([fn, calls]) => (
           <div key={fn}>
-            <button
-              onClick={() => setExpanded(prev => ({ ...prev, [fn]: !prev[fn] }))}
-              className="flex items-center gap-2 w-full text-left p-2 rounded-lg hover:bg-slate-50 text-sm"
-            >
-              {expanded[fn] ? <ChevronDown className="w-3 h-3 text-slate-400" /> : <ChevronRight className="w-3 h-3 text-slate-400" />}
-              <code className="text-slate-800 font-medium">{fn}</code>
-              <span className="text-xs text-slate-400">({calls.length} calls)</span>
+            <button onClick={() => setExpanded(prev => ({ ...prev, [fn]: !prev[fn] }))}
+              className="flex items-center gap-2 w-full text-left py-1.5 hover:bg-zinc-800/30 text-xs">
+              {expanded[fn] ? <ChevronDown className="w-3 h-3 text-zinc-600" /> : <ChevronRight className="w-3 h-3 text-zinc-600" />}
+              <strong className="text-zinc-300 font-semibold">{fn}</strong>
+              <span className="text-zinc-600">({calls.length})</span>
             </button>
             {expanded[fn] && calls.length > 0 && (
-              <div className="ml-6 pl-4 border-l-2 border-slate-200 space-y-1 mb-2">
+              <div className="ml-5 pl-3 border-l border-zinc-800 space-y-0.5 mb-1">
                 {calls.map((callee, i) => (
-                  <div key={i} className="text-sm text-slate-600 flex items-center gap-2">
-                    <ArrowRight className="w-3 h-3 text-slate-400" />
-                    <code>{callee}</code>
+                  <div key={i} className="text-xs text-zinc-500 flex items-center gap-1.5 py-0.5">
+                    <ArrowRight className="w-2.5 h-2.5 text-zinc-700" /> <strong className="font-semibold text-zinc-500">{callee}</strong>
                   </div>
                 ))}
               </div>
@@ -627,29 +616,25 @@ function CallGraphTab({ callGraph, search }: { callGraph: Record<string, string[
 }
 
 function ContributorsTab({ result, search }: { result: AnalysisResult; search: string }) {
-  const filteredContributors = result.contributors.filter(c =>
-    !search || (c.name || '').toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredCommits = result.commit_messages.filter(c =>
-    !search || c.message.toLowerCase().includes(search.toLowerCase()) || c.author.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredContributors = result.contributors.filter(c => !search || (c.name || '').toLowerCase().includes(search.toLowerCase()));
+  const filteredCommits = result.commit_messages.filter(c => !search || c.message.toLowerCase().includes(search.toLowerCase()) || c.author.toLowerCase().includes(search.toLowerCase()));
   return (
-    <div className="grid grid-cols-2 gap-6">
+    <div className="grid grid-cols-2 gap-5">
       {filteredContributors.length > 0 && (
         <div className="card">
-          <div className="flex items-center gap-3 mb-4">
-            <Users className="w-6 h-6 text-green-600" />
-            <h3 className="text-lg font-semibold text-slate-900">Contributors ({filteredContributors.length})</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-green-500" />
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Contributors ({filteredContributors.length})</h3>
           </div>
-          <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto">
+          <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
             {filteredContributors.filter(c => c.name).map((c, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-sm font-bold shrink-0">
+              <div key={i} className="flex items-center gap-2 p-2 bg-zinc-800/50">
+                <div className="w-7 h-7 bg-green-900/30 text-green-400 border border-green-800/50 flex items-center justify-center text-xs font-bold shrink-0">
                   {(c.name || '?')[0].toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-900 truncate">{c.name}</p>
-                  <p className="text-xs text-slate-500">{c.commits ?? 0} commit{(c.commits ?? 0) !== 1 ? 's' : ''}</p>
+                  <p className="text-xs font-medium text-zinc-300 truncate">{c.name}</p>
+                  <p className="text-[10px] text-zinc-600">{c.commits ?? 0} commit{(c.commits ?? 0) !== 1 ? 's' : ''}</p>
                 </div>
               </div>
             ))}
@@ -658,19 +643,16 @@ function ContributorsTab({ result, search }: { result: AnalysisResult; search: s
       )}
       {filteredCommits.length > 0 && (
         <div className="card">
-          <div className="flex items-center gap-3 mb-4">
-            <GitCommit className="w-6 h-6 text-sky-600" />
-            <h3 className="text-lg font-semibold text-slate-900">Recent Commits ({filteredCommits.length})</h3>
+          <div className="flex items-center gap-2 mb-3">
+            <GitCommit className="w-4 h-4 text-sky-500" />
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Recent Commits ({filteredCommits.length})</h3>
           </div>
-          <div className="space-y-2 max-h-80 overflow-y-auto">
+          <div className="space-y-1.5 max-h-72 overflow-y-auto">
             {filteredCommits.map((c, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm p-2 rounded-lg hover:bg-slate-50">
-                <span className="text-xs font-mono text-slate-400 mt-0.5 shrink-0">{c.sha}</span>
-                <p className="flex-1 text-slate-700">{c.message}</p>
-                <div className="text-right shrink-0">
-                  <p className="text-xs text-slate-500">{c.author}</p>
-                  <p className="text-xs text-slate-400">{new Date(c.date).toLocaleDateString()}</p>
-                </div>
+              <div key={i} className="flex items-start gap-2 text-xs py-1.5 border-b border-zinc-800 last:border-0">
+                <span className="text-zinc-600 font-mono shrink-0">{c.sha.slice(0, 7)}</span>
+                <p className="flex-1 text-zinc-400 truncate">{c.message}</p>
+                <span className="text-zinc-600 shrink-0">{c.author}</span>
               </div>
             ))}
           </div>
@@ -679,12 +661,10 @@ function ContributorsTab({ result, search }: { result: AnalysisResult; search: s
       {result.readme_content && (
         <div className="card col-span-2">
           <div className="flex items-center gap-2 mb-3">
-            <BookOpen className="w-5 h-5 text-slate-600" />
-            <h3 className="font-semibold text-slate-900">README</h3>
+            <BookOpen className="w-4 h-4 text-zinc-500" />
+            <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">README</h3>
           </div>
-          <pre className="text-sm text-slate-600 whitespace-pre-wrap max-h-96 overflow-y-auto bg-slate-50 rounded-lg p-4">
-            {result.readme_content}
-          </pre>
+          <pre className="text-xs text-zinc-300 whitespace-pre-wrap max-h-72 overflow-y-auto bg-zinc-800/50 p-3">{result.readme_content}</pre>
         </div>
       )}
     </div>
@@ -693,19 +673,19 @@ function ContributorsTab({ result, search }: { result: AnalysisResult; search: s
 
 function StatCard({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="card text-center">
+    <div className="bg-zinc-900 p-4 text-center">
       {icon && <div className="flex justify-center mb-1">{icon}</div>}
-      <div className="text-2xl font-bold text-primary-600 mb-1">{value}</div>
-      <div className="text-sm text-slate-500">{label}</div>
+      <div className="text-lg font-bold text-primary-400 mb-0.5">{value}</div>
+      <div className="text-[10px] text-zinc-600 uppercase tracking-wider">{label}</div>
     </div>
   );
 }
 
 function MetricItem({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="bg-slate-50 rounded-lg p-3">
-      <div className="text-sm text-slate-500">{label}</div>
-      <div className="text-lg font-semibold text-slate-900">{value}</div>
+    <div className="bg-zinc-800/30 p-2.5">
+      <div className="text-[10px] text-zinc-600 uppercase">{label}</div>
+      <div className="text-sm font-semibold text-zinc-200">{value}</div>
     </div>
   );
 }
