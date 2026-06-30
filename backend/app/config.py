@@ -10,7 +10,7 @@ class Config:
     MAX_FILE_SIZE_KB: int = int(os.getenv("MAX_FILE_SIZE_KB", "500"))
     MAX_REPO_SIZE_MB: int = int(os.getenv("MAX_REPO_SIZE_MB", "100"))
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "ollama")
+    AI_PROVIDER: str = os.getenv("AI_PROVIDER", "groq" if os.getenv("GROQ_API_KEY") else "ollama")
     OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
