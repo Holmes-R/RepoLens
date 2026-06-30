@@ -6,12 +6,18 @@ import logging
 
 from backend.app.models.analysis import ChatRequest, ChatResponse
 from backend.app.config import config
-from backend.app.services.ollama_service import OllamaService
+from backend.app.services.ollama_service import AIService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-ollama = OllamaService(config.OLLAMA_URL, config.OLLAMA_MODEL)
+ai_service = AIService(
+    provider=config.AI_PROVIDER,
+    ollama_url=config.OLLAMA_URL,
+    ollama_model=config.OLLAMA_MODEL,
+    groq_api_key=config.GROQ_API_KEY,
+    groq_model=config.GROQ_MODEL,
+)
 
 from backend.app.api.routes.analyze import analysis_cache
 
@@ -112,11 +118,14 @@ async def chat_with_repo(request: ChatRequest):
     if not result:
         raise HTTPException(status_code=404, detail="Analysis not found.")
 
-    if not ollama.is_available():
-        raise HTTPException(
-            status_code=503,
-            detail=f"Cannot reach Ollama at {config.OLLAMA_URL}. Make sure Ollama is running.",
-        )
+    if not ai_service.is_available():
+        provider = config.AI_PROVIDER
+        detail = f"AI provider '{provider}' is not available."
+        if provider == "ollama":
+            detail += f" Cannot reach Ollama at {config.OLLAMA_URL}."
+        elif provider == "groq":
+            detail += " GROQ_API_KEY is missing or invalid."
+        raise HTTPException(status_code=503, detail=detail)
 
     file_contents = getattr(result, 'file_contents', {}) or {}
     modules_dicts = [m.model_dump() for m in getattr(result, 'modules', [])]
@@ -145,12 +154,12 @@ async def chat_with_repo(request: ChatRequest):
 
     messages.append({"role": "user", "content": request.message})
 
-    response = ollama.chat(messages)
+    response = ai_service.chat(messages)
 
     if response is None:
         raise HTTPException(
             status_code=503,
-            detail="Ollama returned no response. Check the backend logs for details.",
+            detail=f"AI provider '{config.AI_PROVIDER}' returned no response. Check the backend logs for details.",
         )
 
     sources = []
@@ -166,23 +175,23 @@ async def chat_with_repo(request: ChatRequest):
 
 
 @router.get("/test")
-async def test_ollama():
-    """Test endpoint to verify Ollama is working."""
-    if not ollama.is_available():
+async def test_ai():
+    """Test endpoint to verify the AI provider is working."""
+    if not ai_service.is_available():
         return {
             "status": "error",
-            "message": f"Cannot reach Ollama at {config.OLLAMA_URL}",
+            "message": f"AI provider '{config.AI_PROVIDER}' is not available",
+            "provider": config.AI_PROVIDER,
             "ollama_url": config.OLLAMA_URL,
-            "model": config.OLLAMA_MODEL,
-            "config_used": "default" if config.OLLAMA_URL == "http://localhost:11434" else "custom",
+            "model": config.OLLAMA_MODEL if config.AI_PROVIDER == "ollama" else config.GROQ_MODEL,
+            "has_groq_key": bool(config.GROQ_API_KEY),
         }
 
-    result = ollama.test_chat()
+    result = ai_service.test_chat()
     return {
         "status": "ok" if result and not result.startswith("ERROR") else "error",
-        "message": "Ollama is reachable and responded" if result and not result.startswith("ERROR") else "Ollama reachable but model failed",
-        "ollama_url": config.OLLAMA_URL,
-        "model": config.OLLAMA_MODEL,
+        "message": f"AI provider '{config.AI_PROVIDER}' is available and responded",
+        "provider": config.AI_PROVIDER,
+        "model": config.OLLAMA_MODEL if config.AI_PROVIDER == "ollama" else config.GROQ_MODEL,
         "test_response": result,
-        "note": "If test_response contains an error, the model name or Ollama setup needs fixing.",
     }
