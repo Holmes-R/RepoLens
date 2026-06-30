@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.exceptions import HTTPException
 import os
 
 from backend.app.config import config
@@ -40,6 +42,23 @@ async def api_info():
         "version": "1.0.0",
         "description": "Intelligent GitHub Repository Analyzer",
     }
+
+
+frontend_dist = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist")
+
+if os.path.exists(frontend_dist):
+    assets_path = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_path):
+        app.mount("/assets", StaticFiles(directory=assets_path), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not found")
+        index_path = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path, media_type="text/html")
+        raise HTTPException(status_code=404, detail="Not found")
 
 
 if __name__ == "__main__":
