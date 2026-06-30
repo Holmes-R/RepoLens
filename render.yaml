@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: repolens-backend
+    env: docker
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://repolens.vercel.app
+      - key: REPO_STORAGE_PATH
+        value: /data/repos
+      - key: LOG_LEVEL
+        value: INFO
+      - key: OLLAMA_URL
+        value: ""
+    disk:
+      name: repolens-data
+      mountPath: /data
+      sizeGB: 1
