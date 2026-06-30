@@ -26,7 +26,7 @@ def _find_relevant_files(
     question: str,
     file_contents: Dict[str, str],
     modules: List[Dict[str, Any]],
-    max_files: int = 8,
+    max_files: int = 4,
 ) -> str:
     keywords = set(re.findall(r'\w+', question.lower()))
     keywords -= {
@@ -67,7 +67,7 @@ def _find_relevant_files(
 
     parts = []
     for score, path, content in scored[:max_files]:
-        snippet = content[:2000]
+        snippet = content[:500]
         parts.append(f"--- {path} ---\n{snippet}")
 
     return "\n\n".join(parts)
@@ -82,7 +82,7 @@ def _build_system_prompt(
     if description:
         parts.append(f"\nDescription: {description}")
     if readme:
-        parts.append(f"\nREADME:\n{readme[:2000]}")
+        parts.append(f"\nREADME:\n{readme[:500]}")
     if architecture:
         parts.append(f"\nArchitecture: {architecture.get('pattern', 'Unknown')} ({architecture.get('confidence', 0)}%)")
         layers = architecture.get('layers', [])
@@ -90,19 +90,19 @@ def _build_system_prompt(
             parts.append(f"Layers: {', '.join(layers)}")
     if modules:
         lines = [f"\nModules ({len(modules)}):"]
-        for m in modules[:30]:
-            cls = ', '.join(m.get('classes', [])[:5])
-            funcs = ', '.join(m.get('functions', [])[:5])
+        for m in modules[:10]:
+            cls = ', '.join(m.get('classes', [])[:3])
+            funcs = ', '.join(m.get('functions', [])[:3])
             lines.append(f"  {m.get('path', m.get('name', ''))}: [{cls}] [{funcs}]")
         parts.append('\n'.join(lines))
     if database_schema:
         lines = [f"\nDatabase tables ({len(database_schema)}):"]
         for t in database_schema:
-            cols = ', '.join(f"{c.get('name','')} {c.get('type','')}" for c in t.get('columns', [])[:8])
+            cols = ', '.join(f"{c.get('name','')} {c.get('type','')}" for c in t.get('columns', [])[:4])
             lines.append(f"  {t.get('name')}: {cols}")
         parts.append('\n'.join(lines))
     if dependencies:
-        top = sorted(dependencies, key=lambda d: d.get('name', ''))[:20]
+        top = sorted(dependencies, key=lambda d: d.get('name', ''))[:10]
         parts.append(f"\nDependencies: {', '.join(d.get('name','') for d in top)}")
     parts.append(
         "\n\nAnswer the user's question about this repository using the context and your knowledge."
