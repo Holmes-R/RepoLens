@@ -165,7 +165,7 @@ class AIService:
 
         try:
             resp = requests.post(
-                f"https://generativelanguage.googleapis.com/v1/models/{self.gemini_model}:generateContent?key={self.gemini_api_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={self.gemini_api_key}",
                 json=body,
                 timeout=60,
             )
