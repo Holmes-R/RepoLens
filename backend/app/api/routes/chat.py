@@ -17,6 +17,8 @@ ai_service = AIService(
     ollama_model=config.OLLAMA_MODEL,
     groq_api_key=config.GROQ_API_KEY,
     groq_model=config.GROQ_MODEL,
+    gemini_api_key=config.GEMINI_API_KEY,
+    gemini_model=config.GEMINI_MODEL,
 )
 
 from backend.app.api.routes.analyze import analysis_cache
@@ -125,6 +127,8 @@ async def chat_with_repo(request: ChatRequest):
             detail += f" Cannot reach Ollama at {config.OLLAMA_URL}."
         elif provider == "groq":
             detail += " GROQ_API_KEY is missing or invalid."
+        elif provider == "gemini":
+            detail += " GEMINI_API_KEY is missing."
         raise HTTPException(status_code=503, detail=detail)
 
     file_contents = getattr(result, 'file_contents', {}) or {}
@@ -162,7 +166,7 @@ async def chat_with_repo(request: ChatRequest):
             detail=f"AI provider '{config.AI_PROVIDER}' returned no response. Check the backend logs for details.",
         )
 
-    if response.startswith("Groq ") or response.startswith("Cannot "):
+    if response.startswith("Groq ") or response.startswith("Gemini ") or response.startswith("Cannot "):
         raise HTTPException(status_code=502, detail=response)
 
     sources = []
