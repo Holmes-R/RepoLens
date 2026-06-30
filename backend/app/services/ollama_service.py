@@ -101,7 +101,7 @@ class AIService:
                     "model": self.groq_model,
                     "messages": messages,
                     "temperature": 0.7,
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
                 },
                 timeout=60,
             )
