@@ -2,34 +2,36 @@
 
 Intelligent GitHub Repository Analyzer — Understand any codebase in minutes.
 
-**Live deployment:** [http://repolens/](http://repolens/)
-
 ---
 
 ## Situation
 
-Developers join new projects, review pull requests, or audit unfamiliar repositories and face a steep learning curve. Understanding a codebase's architecture, dependencies, call flows, and data models requires manually reading files, switching between tools, and piecing together context — a slow, error-prone process with no centralized view.
+Developers join new projects, review pull requests, or audit unfamiliar repositories every day. Understanding a codebase's architecture, dependencies, call flows, and data models requires manually reading dozens of files, switching between multiple tools, and piecing together context from scattered sources. This process is slow, error-prone, and lacks a centralized view — costing hours or days of productivity for each new codebase encountered.
 
 ## Task
 
 Build a tool that, given any public GitHub repository URL, automatically:
-- Clones and analyzes the full codebase
-- Detects architecture patterns (MVC, Clean Architecture, Microservices, etc.)
-- Extracts dependencies by package manager (npm, PyPI, Cargo, Go, Pub, Maven, RubyGems)
-- Generates call graphs and code metrics via AST parsing
-- Discovers database schemas from SQL, ORM models, and migration files
-- Renders interactive Mermaid diagrams (architecture, dependency, sequence, directory, layer)
-- Provides a natural-language AI chat powered by local Ollama for codebase Q&A
+- Clones and deeply analyzes the full codebase
+- Detects architecture patterns (MVC, Clean Architecture, Microservices, Event-Driven, Hexagonal, Serverless, DDD) with confidence scoring
+- Extracts dependencies from 7 package managers (npm, PyPI, Cargo, Go, RubyGems, Pub, Maven)
+- Generates function-level call graphs via AST parsing across 8 languages (Python, JS, TS, Go, Rust, Java, PHP, Ruby)
+- Discovers database schemas from SQL files, migration scripts, and ORM models (Django, SQLAlchemy, TypeORM, Prisma, Laravel, Alembic)
+- Renders 5 types of interactive Mermaid diagrams (architecture, dependency, sequence, directory, layer)
+- Provides natural-language AI chat for codebase Q&A powered by Groq or Gemini
 
-All behind a flat dark-themed dashboard accessible from a single URL.
+All delivered through a flat dark-themed dashboard accessible from a single URL.
 
 ## Action
 
-- **Backend:** Python/FastAPI service with a modular analysis pipeline — clones repos, walks ASTs, detects frameworks, and emits structured JSON. An Ollama service retrieves relevant source files and answers questions via `qwen2.5:7b`.
-- **Frontend:** React/TypeScript SPA built with Vite and Tailwind CSS. An interactive dashboard (7 tabs: Overview, Architecture, Dependencies, Database, Call Graph, Diagrams, Contributors) displays results, renders Mermaid diagrams with a custom dark theme, and hosts the AI chat sidebar.
-- **Diagrams:** All 5 diagram types (architecture, dependency, sequence, directory, layer) generated server-side as Mermaid definitions and rendered client-side. Uses `theme: 'base'` with custom theme variables for dark-mode compatibility.
-- **Docker Deployment:** Two containers — `repolens-backend` (uvicorn on `:8000`) and `repolens-frontend` (nginx on `:80`). nginx proxies `/api` to the backend with a 300s timeout for long-running analysis and AI requests. Analysis data persists via a named volume.
-- **AI Integration:** Ollama runs on the host and is accessed from the container via `host.docker.internal`. The chat uses keyword-based file retrieval (no vector DB) to find relevant source files and passes them as context in the system prompt.
+### Architecture
+- **Backend:** Python/FastAPI service with a modular analysis pipeline — clones repos via GitPython, walks ASTs with tree-sitter, detects frameworks, computes cyclomatic complexity, and emits structured JSON. A pluggable AI service supports multiple providers (Ollama locally, Groq, Gemini) for context-aware codebase Q&A.
+- **Frontend:** React/TypeScript SPA built with Vite and Tailwind CSS. Interactive dashboard with 7 tabs (Overview, Architecture, Dependencies, Database, Call Graph, Diagrams, Contributors). Mermaid diagrams use `theme: 'base'` with custom dark-mode theme variables. Sidebar navigation preserves repo context across Analysis, Diagrams, and Chat views via URL-based routing.
+- **AI Chat:** Keyword-based file retrieval finds relevant source files from the analyzed codebase and passes them as context to the AI. Supports Ollama (local), Groq (`llama-3.3-70b`), or Gemini (`gemini-2.0-flash`) — configurable via a single environment variable.
+
+### Deployment
+- **Single-container Docker** — builds frontend (Node) and backend (Python) in one image. Backend serves the React SPA as static files and handles API routes under `/api/`.
+- **Render-ready** — deployable as a Docker web service with persistent disk for cloned repositories.
+- **Local development** — `docker compose up` or manual backend + frontend setup.
 
 ## Result
 
@@ -39,53 +41,85 @@ A fully containerized, self-hosted application that reduces codebase onboarding 
 |---|---|
 | Architecture Detection | MVC, Clean Architecture, Layered, Microservices, Event-Driven, Hexagonal, Serverless, DDD — with confidence scoring |
 | Dependency Graph | npm, PyPI, Cargo, Go, RubyGems, Pub, Maven — grouped by source with version info |
-| Call Graph | Function-level call relationships across Python, JS, TS, Go, Rust, Java, PHP, Ruby |
-| Schema Analysis | SQL files, migrations, ORM models (Django, SQLAlchemy, TypeORM, Prisma, Laravel, Alembic) |
-| Directory Tree | Interactive project structure diagram (depth-limited) |
-| Code Metrics | Files, lines, functions, classes, cyclomatic complexity, average function length |
-| AI Chat | Natural-language Q&A about the repository using local Ollama (`qwen2.5:7b`) |
-| Framework Detection | Identifies frameworks and libraries with version info |
-| Language Breakdown | Per-file language detection with percentage distribution |
-| Diagrams | 5 types: architecture, dependency, sequence, directory, layer — all rendered as Mermaid |
+| Call Graph | Function-level call relationships across 8 languages |
+| Schema Analysis | Detects DB schemas from SQL files, migrations, ORM models |
+| Directory Tree | Interactive project structure diagram |
+| Code Metrics | Files, lines, functions, classes, cyclomatic complexity |
+| AI Chat | Q&A about the repo using Groq, Gemini, or local Ollama |
+| Framework Detection | Identifies frameworks with version info |
+| Language Breakdown | Per-file language detection with distribution |
+| Diagrams | 5 types: architecture, dependency, sequence, directory, layer |
 
 ---
 
 ## Quick Start
 
-### Docker (recommended)
+### Docker (local)
 
 ```bash
 docker compose up --build -d
 ```
 
-Then open [http://repolens/](http://repolens/) (requires hosts entry: `127.0.0.1 repolens`).
+Open [http://localhost/](http://localhost/).
 
-### Backend (manual)
+### Manual
 
 ```bash
+# Backend
 cd backend
 pip install -r requirements.txt
-cp .env.example .env  # Configure your keys
+cp .env.example .env  # Set your API keys
 python -m backend.app.main
-```
 
-### Frontend (manual)
-
-```bash
+# Frontend (separate terminal)
 cd frontend
 npm install
 npm run dev
 ```
 
-## Prerequisites
+Open [http://localhost:5173](http://localhost:5173) (Vite dev server proxies API to backend).
 
-- **Docker** (for containerized deployment) or **Python 3.12+** / **Node 20+** (for manual setup)
-- **Ollama** running locally with `qwen2.5:7b` (or another model) for AI chat
-- A **GitHub token** (optional, but increases API rate limits for public repos)
+---
+
+## Deployment on Render
+
+1. Push to GitHub
+2. Go to [render.com](https://render.com) → New Web Service → Connect your repo
+3. Set **Runtime** to `Docker`, **Dockerfile Path** to `./Dockerfile`
+4. Add environment variables:
+   - `GEMINI_API_KEY` — from [aistudio.google.com](https://aistudio.google.com/apikey) (free)
+   - *or* `GROQ_API_KEY` — from [console.groq.com](https://console.groq.com) (free tier)
+   - *or* `OPENAI_API_KEY` — from [platform.openai.com](https://platform.openai.com)
+   - `GITHUB_TOKEN` — from [github.com/settings/tokens](https://github.com/settings/tokens) (optional, for higher rate limits)
+   - `CORS_ORIGINS` — set to `https://your-app.onrender.com`
+5. Add a **Disk** → Name: `repolens-data`, Mount Path: `/data`, Size: `1 GB`
+6. Deploy
+
+---
+
+## Configuration
+
+Set via environment variables (`.env` file for local, Render dashboard for production):
+
+| Variable | Default | Description |
+|---|---|---|
+| `AI_PROVIDER` | auto | `gemini`, `groq`, `ollama`, or `openai` — auto-detected from API key presence |
+| `GEMINI_API_KEY` | — | Google Gemini API key (free, 60 req/min) |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model name |
+| `GROQ_API_KEY` | — | Groq API key (free tier, rate limited) |
+| `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
+| `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
+| `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
+| `GITHUB_TOKEN` | — | GitHub personal access token |
+| `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
+| `REPO_STORAGE_PATH` | `./data/repos` | Where cloned repos are stored |
+| `LOG_LEVEL` | `INFO` | Logging verbosity |
+
+---
 
 ## Tech Stack
 
-- **Backend:** Python, FastAPI, GitPython, tree-sitter, requests
-- **Frontend:** React, TypeScript, Vite, Tailwind CSS, Mermaid, Lucide React
-- **AI:** Ollama (`qwen2.5:7b`)
-- **Infrastructure:** Docker, nginx, docker compose
+- **Backend:** Python, FastAPI, GitPython, Tree-sitter, requests
+- **Frontend:** React, TypeScript, Vite, Tailwind CSS, Mermaid, Lucide React, Axios
+- **AI:** Ollama (local), Groq (cloud), Gemini (cloud)
+- **Infrastructure:** Docker, Render
