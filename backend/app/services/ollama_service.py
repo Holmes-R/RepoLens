@@ -107,29 +107,29 @@ class AIService:
             )
         except requests.ConnectionError:
             logger.error("Cannot connect to Groq API")
-            return None
+            return "Cannot connect to Groq API"
         except requests.Timeout:
             logger.error("Groq request timed out after 60s")
-            return None
+            return "Groq request timed out"
         except Exception as e:
             logger.error("Groq request failed: %s", e)
-            return None
+            return f"Groq request failed: {e}"
         if resp.status_code != 200:
             logger.error("Groq HTTP %d: %s", resp.status_code, resp.text[:1000])
-            return None
+            return f"Groq API error ({resp.status_code}): {resp.text[:500]}"
         try:
             data = resp.json()
         except json.JSONDecodeError:
             logger.error("Groq bad JSON: %s", resp.text[:1000])
-            return None
+            return f"Groq bad response: {resp.text[:500]}"
         choices = data.get("choices", [])
         if not choices:
             logger.warning("Groq empty choices: %s", json.dumps(data)[:500])
-            return None
+            return f"Groq returned no choices: {json.dumps(data)[:300]}"
         content = choices[0].get("message", {}).get("content", "")
         if not content:
             logger.warning("Groq empty content: %s", json.dumps(data)[:500])
-        else:
-            logger.info("Groq response: %d chars, starts with: %s",
-                        len(content), content[:150])
+            return "Groq returned empty content"
+        logger.info("Groq response: %d chars, starts with: %s",
+                    len(content), content[:150])
         return content

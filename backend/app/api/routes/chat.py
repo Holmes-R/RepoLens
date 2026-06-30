@@ -162,6 +162,9 @@ async def chat_with_repo(request: ChatRequest):
             detail=f"AI provider '{config.AI_PROVIDER}' returned no response. Check the backend logs for details.",
         )
 
+    if response.startswith("Groq ") or response.startswith("Cannot "):
+        raise HTTPException(status_code=502, detail=response)
+
     sources = []
     for path in file_contents:
         if path in response or os.path.basename(path) in response:
