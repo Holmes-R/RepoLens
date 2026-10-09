@@ -91,7 +91,6 @@ class LanguageDetector:
 
     def detect_languages(self) -> Dict[str, Dict]:
         self._scan_files()
-        total_lines = sum(info["lines"] for info in self._file_cache.values())
 
         language_stats = {}
         for path, info in self._file_cache.items():
@@ -103,6 +102,7 @@ class LanguageDetector:
                 language_stats[lang]["lines"] += info["lines"]
 
         # Calculate percentages
+        total_lines = sum(stats["lines"] for stats in language_stats.values())
         result = {}
         for lang, stats in language_stats.items():
             result[lang] = {

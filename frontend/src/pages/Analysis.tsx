@@ -1,36 +1,14 @@
-import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { getAnalysis, analyzeRepo, getAllDiagrams } from '../api/client';
 import type { AnalysisResult, DatabaseTable } from '../types';
-import mermaid from 'mermaid';
+import { MermaidDiagram } from '../components/MermaidDiagram';
 import {
   Loader2, AlertCircle, Search, Layers, GitBranch, Box, Workflow, FileSearch,
   Puzzle, ArrowRight, Star, GitFork, Users, GitCommit, Database, FolderTree,
   Code2, Download, X, ChevronRight, ChevronDown, Table2,
   BookOpen, BarChart3, MessageSquare
 } from 'lucide-react';
-
-mermaid.initialize({
-  startOnLoad: false,
-  theme: 'base',
-  securityLevel: 'loose',
-  themeVariables: {
-    background: '#09090b',
-    primaryColor: '#1e1b4b',
-    primaryTextColor: '#e4e4e7',
-    primaryBorderColor: '#312e81',
-    lineColor: '#6366f1',
-    secondaryColor: '#27272a',
-    tertiaryColor: '#18181b',
-    clusterBkg: '#18181b',
-    clusterBorder: '#27272a',
-    nodeTextColor: '#e4e4e7',
-    titleColor: '#e4e4e7',
-    edgeLabelBackground: '#27272a',
-    nodeBorder: '#312e81',
-    mainBkg: '#09090b',
-  },
-});
 
 const DIAGRAM_TABS = [
   { key: 'architecture', label: 'Architecture', icon: Layers },
@@ -60,7 +38,7 @@ export function AnalysisPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [diagrams, setDiagrams] = useState<Record<string, string>>({});
   const [activeDiagram, setActiveDiagram] = useState('architecture');
-  const diagramRendered = useRef<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (id) loadAnalysis(id);
@@ -77,33 +55,14 @@ export function AnalysisPage() {
     }
   }, [result]);
 
-  useEffect(() => {
-    if (activeTab === 'diagrams' && diagrams[activeDiagram]) {
-      const key = `diagram-${activeDiagram}`;
-      if (diagramRendered.current.has(key)) return;
-      diagramRendered.current.add(key);
-      setTimeout(() => {
-        const el = document.getElementById(key);
-        if (el) {
-          el.innerHTML = '<div class="text-zinc-600 text-sm animate-pulse">Rendering...</div>';
-          mermaid.render(`svg-${activeDiagram}`, diagrams[activeDiagram])
-            .then(({ svg }) => { el.innerHTML = svg; })
-            .catch((err: Error) => {
-              el.innerHTML = `<pre class="text-red-400 text-xs">${err.message || 'Failed to render'}</pre>`;
-            });
-        }
-      }, 50);
-    }
-  }, [activeTab, activeDiagram, diagrams]);
-
   const loadAnalysis = async (analysisId: string) => {
     setLoading(true);
     try {
       const res = await getAnalysis(analysisId);
       setResult(res);
       setUrl(res.repository.url);
-    } catch (_err: any) {
-      // silently fall back to input form
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to load analysis');
     } finally {
       setLoading(false);
     }
@@ -116,7 +75,7 @@ export function AnalysisPage() {
     setError('');
     try {
       const res = await analyzeRepo({ repo_url: url.trim() });
-      await loadAnalysis(res.analysis_id);
+      navigate(`/analysis/${res.analysis_id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to analyze');
     } finally {
@@ -265,7 +224,7 @@ export function AnalysisPage() {
                     return (
                       <button
                         key={tab.key}
-                        onClick={() => { setActiveDiagram(tab.key); diagramRendered.current.delete(`diagram-${tab.key}`); }}
+                        onClick={() => setActiveDiagram(tab.key)}
                         className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                           activeDiagram === tab.key ? 'bg-primary-900/30 text-primary-400' : 'text-zinc-500 hover:text-zinc-300 bg-zinc-900'
                         }`}
@@ -277,7 +236,7 @@ export function AnalysisPage() {
                 </div>
                 <div className="card">
                   <h3 className="text-sm font-semibold text-white mb-4 uppercase tracking-wider">{activeDiagram} Diagram</h3>
-                  <div id={`diagram-${activeDiagram}`} className="bg-zinc-950 p-4 min-h-[400px]" />
+                  <MermaidDiagram code={diagrams[activeDiagram]} className="bg-zinc-950 p-4 min-h-[400px]" />
                 </div>
               </div>
             )}

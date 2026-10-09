@@ -24,6 +24,7 @@ class Dependency(BaseModel):
     version: str
     type: str  # internal, external
     source: str  # npm, pypi, cargo, etc.
+    source_file: Optional[str] = None
 
 
 class ModuleInfo(BaseModel):
@@ -110,4 +111,5 @@ class AnalysisResult(BaseModel):
     database_schema: List[DatabaseTable] = []
     diagrams: Dict[str, str] = {}  # type -> mermaid/markup string
     file_contents: Dict[str, str] = {}  # path -> content preview for AI chat
+    analyzed_files: List[str] = []
     analyzed_at: datetime = Field(default_factory=datetime.now)

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { chatWithRepo, getAnalysis, analyzeRepo } from '../api/client';
 import type { AnalysisResult } from '../types';
 import { Send, Loader2, AlertCircle, MessageSquare, Bot, User, FileText, BarChart3 } from 'lucide-react';
@@ -11,6 +11,8 @@ interface Message {
   error?: boolean;
 }
 
+const SUGGESTED_QUESTIONS = ['Explain the authentication flow', 'Where is the main entry point?', 'Describe the architecture', 'Find all API routes', 'Explain how caching works', 'What does this app do?'];
+
 export function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const [url, setUrl] = useState('');
@@ -20,9 +22,10 @@ export function ChatPage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(Boolean(id));
   const [error, setError] = useState('');
   const messagesEnd = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,7 +40,10 @@ export function ChatPage() {
           role: 'assistant',
           content: `I've analyzed **${analysis.repository.name}**. Ask me anything — architecture, code flow, specific functions, how things work.`,
         }]);
-      }).catch(() => setAnalysisId(null)).finally(() => setLoadingExisting(false));
+      }).catch((err: any) => {
+        setAnalysisId(null);
+        setError(err.response?.data?.detail || 'Failed to load analysis');
+      }).finally(() => setLoadingExisting(false));
     }
   }, [id]);
 
@@ -48,14 +54,7 @@ export function ChatPage() {
     setError('');
     try {
       const res = await analyzeRepo({ repo_url: url.trim() });
-      setAnalysisId(res.analysis_id);
-      window.history.replaceState(null, '', `/chat/${res.analysis_id}`);
-      const analysis = await getAnalysis(res.analysis_id);
-      setResult(analysis);
-      setMessages([{
-        role: 'assistant',
-        content: `I've analyzed **${analysis.repository.name}**. Ask me anything — architecture, code flow, specific functions, how things work.`,
-      }]);
+      navigate(`/chat/${res.analysis_id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to analyze repository');
     } finally {
@@ -71,7 +70,7 @@ export function ChatPage() {
     setLoading(true);
 
     try {
-      const history = messages.map(m => ({ role: m.role, content: m.content }));
+      const history = messages.filter(m => !m.error).map(m => ({ role: m.role, content: m.content }));
       const res = await chatWithRepo({ analysis_id: analysisId, message: userMsg.content, history });
       setMessages(prev => [...prev, { role: 'assistant', content: res.response, sources: res.sources }]);
     } catch (err: any) {
@@ -110,12 +109,6 @@ export function ChatPage() {
                 <AlertCircle className="w-4 h-4 shrink-0" /> {error}
               </div>
             )}
-            <div className="mt-6 grid grid-cols-2 gap-2 text-left">
-              {['Explain the authentication flow', 'Where is the main entry point?', 'Describe the architecture', 'Find all API routes', 'Explain how caching works', 'What does this app do?'].map((q) => (
-                <button key={q} onClick={() => setUrl(q)}
-                  className="text-xs text-zinc-600 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-3 py-2 text-left transition-colors">"{q}"</button>
-              ))}
-            </div>
           </div>
         </div>
       ) : (
@@ -174,6 +167,16 @@ export function ChatPage() {
             <div ref={messagesEnd} />
           </div>
 
+          {messages.length === 1 && (
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              {SUGGESTED_QUESTIONS.map((question) => (
+                <button key={question} onClick={() => setInput(question)}
+                  className="text-xs text-zinc-500 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 px-3 py-2 text-left transition-colors">
+                  {question}
+                </button>
+              ))}
+            </div>
+          )}
           <div className="flex gap-2">
             <input type="text" value={input} onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())}

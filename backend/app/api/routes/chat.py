@@ -6,7 +6,7 @@ import logging
 
 from backend.app.models.analysis import ChatRequest, ChatResponse
 from backend.app.config import config
-from backend.app.services.ollama_service import AIService
+from backend.app.services.ollama_service import AIService, AIServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ ai_service = AIService(
     provider=config.AI_PROVIDER,
     ollama_url=config.OLLAMA_URL,
     ollama_model=config.OLLAMA_MODEL,
+    ollama_think=config.OLLAMA_THINK,
     groq_api_key=config.GROQ_API_KEY,
     groq_model=config.GROQ_MODEL,
     gemini_api_key=config.GEMINI_API_KEY,
@@ -114,7 +115,7 @@ def _build_system_prompt(
 
 
 @router.post("/", response_model=ChatResponse)
-async def chat_with_repo(request: ChatRequest):
+def chat_with_repo(request: ChatRequest):
     analysis_id = request.analysis_id
     result = analysis_cache.get(analysis_id)
     if not result:
@@ -158,9 +159,12 @@ async def chat_with_repo(request: ChatRequest):
 
     messages.append({"role": "user", "content": request.message})
 
-    response = ai_service.chat(messages)
+    try:
+        response = ai_service.chat(messages)
+    except AIServiceError as error:
+        raise HTTPException(status_code=error.status_code, detail=str(error)) from None
 
-    if response is None:
+    if not response:
         raise HTTPException(
             status_code=503,
             detail=f"AI provider '{config.AI_PROVIDER}' returned no response. Check the backend logs for details.",
@@ -182,23 +186,30 @@ async def chat_with_repo(request: ChatRequest):
 
 
 @router.get("/test")
-async def test_ai():
+def test_ai():
     """Test endpoint to verify the AI provider is working."""
+    diagnostics = {
+        "provider": ai_service.provider,
+        "model": ai_service.model,
+        "ollama_url": config.OLLAMA_URL,
+        "has_groq_key": bool(config.GROQ_API_KEY),
+        "has_gemini_key": bool(config.GEMINI_API_KEY),
+    }
     if not ai_service.is_available():
         return {
+            **diagnostics,
             "status": "error",
             "message": f"AI provider '{config.AI_PROVIDER}' is not available",
-            "provider": config.AI_PROVIDER,
-            "ollama_url": config.OLLAMA_URL,
-            "model": config.OLLAMA_MODEL if config.AI_PROVIDER == "ollama" else config.GROQ_MODEL,
-            "has_groq_key": bool(config.GROQ_API_KEY),
         }
 
-    result = ai_service.test_chat()
+    try:
+        result = ai_service.test_chat()
+    except AIServiceError as error:
+        return {**diagnostics, "status": "error", "message": str(error)}
+    succeeded = bool(result) and not result.startswith(("ERROR", "Groq ", "Gemini ", "Cannot "))
     return {
-        "status": "ok" if result and not result.startswith("ERROR") else "error",
-        "message": f"AI provider '{config.AI_PROVIDER}' is available and responded",
-        "provider": config.AI_PROVIDER,
-        "model": config.OLLAMA_MODEL if config.AI_PROVIDER == "ollama" else config.GROQ_MODEL,
+        **diagnostics,
+        "status": "ok" if succeeded else "error",
+        "message": f"AI provider '{ai_service.provider}' responded" if succeeded else result,
         "test_response": result,
     }

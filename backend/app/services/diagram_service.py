@@ -9,8 +9,10 @@ class DiagramService:
         return safe
 
     def _sanitize_mermaid_label(self, name: str) -> str:
-        # Remove characters Mermaid interprets as shape syntax
-        return re.sub(r"[\[\](){}<>]", "", name)
+        # Quoted labels preserve punctuation; entities protect their delimiters.
+        return (name.replace("&", "#38;").replace('"', "#quot;")
+                .replace("<", "#60;").replace(">", "#62;")
+                .replace("\n", " ").replace("\r", " "))
 
     def generate_mermaid_diagram(self, diagram_type: str, data: Dict[str, Any]) -> str:
         generators = {
@@ -83,14 +85,14 @@ class DiagramService:
             "maven": "#FF8A65",
         }
 
-        for source, sdeps in source_groups.items():
-            safe_source = self._sanitize_mermaid_id(source)
+        for source_index, (source, sdeps) in enumerate(source_groups.items()):
+            safe_source = f"source_{source_index}"
             color = colors.get(source, "#90CAF9")
             mermaid.append(f"        subgraph {safe_source}[{source.upper()} - {len(sdeps)} deps]")
-            for d in sdeps:
-                safe_name = self._sanitize_mermaid_id(d["name"])
+            for dep_index, d in enumerate(sdeps):
+                safe_name = f"dep_{source_index}_{dep_index}"
                 label = self._sanitize_mermaid_label(d["name"])
-                mermaid.append(f"            {safe_name}[<b>{label}</b>]")
+                mermaid.append(f'            {safe_name}["<b>{label}</b>"]')
             mermaid.append("        end")
 
         mermaid.append("    end")
@@ -172,10 +174,11 @@ class DiagramService:
                 if safe in added:
                     safe = f"{safe}_{current_id}"
                 added.add(safe)
+                label = self._sanitize_mermaid_label(name)
                 if is_leaf:
-                    mermaid.append(f"    {current_id}[<b>{name}</b>]")
+                    mermaid.append(f'    {current_id}["<b>{label}</b>"]')
                 else:
-                    mermaid.append(f"    {current_id}[<b>{name}</b>/]")
+                    mermaid.append(f'    {current_id}["<b>{label}</b>/"]')
                 if parent_id is not None:
                     mermaid.append(f"    {parent_id} --> {current_id}")
                 render(children, current_id, depth + 1)

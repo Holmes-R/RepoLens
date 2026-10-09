@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from typing import Dict, Any
 
 from backend.app.models.analysis import AnalyzeRequest, AnalyzeResponse
@@ -11,10 +11,12 @@ analysis_cache: Dict[str, Any] = {}
 
 
 @router.post("/", response_model=AnalyzeResponse)
-async def analyze_repository(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+def analyze_repository(request: AnalyzeRequest):
     """Start analysis of a GitHub repository."""
     try:
         result = analyzer.analyze(request.repo_url, request.branch, request.deep_analysis)
+        if result.repository.status == "failed":
+            raise HTTPException(status_code=400, detail=result.repository.error_message or "Analysis failed")
         analysis_cache[result.repository.id] = result
         return AnalyzeResponse(
             analysis_id=result.repository.id,
@@ -22,6 +24,8 @@ async def analyze_repository(request: AnalyzeRequest, background_tasks: Backgrou
             message="Analysis completed successfully" if result.repository.status == "completed"
                     else f"Analysis failed: {result.repository.error_message}",
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

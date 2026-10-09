@@ -86,6 +86,7 @@ export interface AnalysisResult {
   database_schema: DatabaseTable[];
   diagrams: Record<string, string>;
   analyzed_at: string;
+  analyzed_files: string[];
 }
 
 export interface Repository {

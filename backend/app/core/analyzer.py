@@ -27,7 +27,7 @@ class RepositoryAnalyzer:
         self.diagram_service = DiagramService()
 
 
-    def analyze(self, repo_url: str, branch: str = "main", deep: bool = False) -> AnalysisResult:
+    def analyze(self, repo_url: str, branch: Optional[str] = None, deep: bool = False) -> AnalysisResult:
         # Clone repository
         local_path = self.git_service.clone_repository(repo_url, branch)
         repo_name = self.git_service._extract_repo_name(repo_url)
@@ -37,7 +37,7 @@ class RepositoryAnalyzer:
             url=repo_url,
             name=repo_name,
             full_name=repo_name,
-            default_branch=branch,
+            default_branch=branch or self.git_service.get_current_branch(local_path),
             stars=gh_info.get("stars", 0),
             forks=gh_info.get("forks", 0),
             open_issues=gh_info.get("open_issues", 0),
@@ -196,6 +196,7 @@ class RepositoryAnalyzer:
                 readme_content=readme_content,
                 diagrams=diagrams,
                 file_contents=file_contents,
+                analyzed_files=all_files_list,
             )
 
             repo.status = "completed"

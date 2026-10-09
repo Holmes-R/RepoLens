@@ -65,10 +65,9 @@ Open [http://localhost/](http://localhost/).
 ### Manual
 
 ```bash
-# Backend
-cd backend
-pip install -r requirements.txt
-cp .env.example .env  # Set your API keys
+# Backend (from the repository root)
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env  # Set your API keys
 python -m backend.app.main
 
 # Frontend (separate terminal)
@@ -78,6 +77,28 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173) (Vite dev server proxies API to backend).
+
+The frontend uses `/api` by default. If setting `VITE_API_URL`, use the backend
+origin (for example, `http://localhost:8000`) or its full API base URL
+(`http://localhost:8000/api`). Backend origins automatically receive the `/api`
+prefix. Restart the Vite server after changing frontend environment variables;
+rebuild the frontend when serving the production bundle.
+
+Run the backend regression checks from the repository root:
+
+```bash
+python -m unittest discover -s backend/tests -v
+```
+
+Run frontend URL regression checks from `frontend` with `npm test`.
+
+For local AI chat, Ollama must be running and `OLLAMA_MODEL` in `backend/.env`
+must match an installed model. Run `ollama list` to see installed models, or
+`ollama pull qwen2.5:7b` to install the default model. Restart the backend after
+changing its environment settings. `/api/chat/test` reports the active provider,
+model, and any generation error. `OLLAMA_THINK=false` disables extra thinking
+output for responsive chat; set it to `true` to enable thinking on models that
+support it.
 
 ---
 
@@ -110,6 +131,7 @@ Set via environment variables (`.env` file for local, Render dashboard for produ
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
 | `OLLAMA_MODEL` | `qwen2.5:7b` | Ollama model name |
+| `OLLAMA_THINK` | `false` | Enable or disable thinking output for Ollama models |
 | `GITHUB_TOKEN` | — | GitHub personal access token |
 | `CORS_ORIGINS` | `http://localhost:5173,...` | Allowed CORS origins |
 | `REPO_STORAGE_PATH` | `./data/repos` | Where cloned repos are stored |

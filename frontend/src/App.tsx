@@ -56,12 +56,12 @@ function App() {
       <main className="flex-1 overflow-auto">
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/analysis" element={<AnalysisPage />} />
-          <Route path="/analysis/:id" element={<AnalysisPage />} />
-          <Route path="/diagrams" element={<DiagramsPage />} />
-          <Route path="/diagrams/:id" element={<DiagramsPage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat/:id" element={<ChatPage />} />
+          <Route path="/analysis" element={<AnalysisPage key={location.pathname} />} />
+          <Route path="/analysis/:id" element={<AnalysisPage key={location.pathname} />} />
+          <Route path="/diagrams" element={<DiagramsPage key={location.pathname} />} />
+          <Route path="/diagrams/:id" element={<DiagramsPage key={location.pathname} />} />
+          <Route path="/chat" element={<ChatPage key={location.pathname} />} />
+          <Route path="/chat/:id" element={<ChatPage key={location.pathname} />} />
         </Routes>
       </main>
     </div>

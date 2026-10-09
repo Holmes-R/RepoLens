@@ -14,7 +14,7 @@ class GitService:
         os.makedirs(storage_path, exist_ok=True)
 
     def _extract_owner_repo(self, repo_url: str) -> Optional[tuple]:
-        parts = repo_url.rstrip("/").rstrip(".git").split("/")
+        parts = repo_url.rstrip("/").removesuffix(".git").split("/")
         if len(parts) >= 2:
             return (parts[-2], parts[-1])
         return None
@@ -76,26 +76,23 @@ class GitService:
         if self.github_token and "github.com" in repo_url:
             repo_url = repo_url.replace("https://github.com/", f"https://x-access-token:{self.github_token}@github.com/")
 
-        branches_to_try = [branch] if branch else []
-        if not branches_to_try:
-            branches_to_try = ["main", "master"]
-        elif branch == "main":
-            branches_to_try = ["main", "master"]
-        elif branch == "master":
-            branches_to_try = ["master", "main"]
+        try:
+            options = {"depth": 50}
+            if branch:
+                options["branch"] = branch
+            Repo.clone_from(repo_url, local_path, **options).close()
+            return local_path
+        except GitCommandError as e:
+            self.cleanup(local_path)
+            error = str(e)
+            if self.github_token:
+                error = error.replace(self.github_token, "[REDACTED]")
+            raise ValueError(f"Failed to clone repository: {error}") from None
 
-        last_error = None
-        for b in branches_to_try:
-            try:
-                Repo.clone_from(repo_url, local_path, branch=b, depth=50)
-                return local_path
-            except GitCommandError as e:
-                last_error = e
-                if os.path.exists(local_path):
-                    shutil.rmtree(local_path, ignore_errors=True)
-                continue
-
-        raise Exception(f"Failed to clone repository. Tried branches: {branches_to_try}. Error: {last_error}")
+    @staticmethod
+    def get_current_branch(repo_path: str) -> str:
+        with Repo(repo_path) as repo:
+            return repo.head.commit.hexsha if repo.head.is_detached else repo.active_branch.name
 
     def get_contributors(self, repo_path: str) -> list:
         contributors = {}

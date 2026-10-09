@@ -16,7 +16,7 @@ class ChatResponse(BaseModel):
 
 class AnalyzeRequest(BaseModel):
     repo_url: str
-    branch: Optional[str] = "main"
+    branch: Optional[str] = None
     deep_analysis: bool = False
 
 

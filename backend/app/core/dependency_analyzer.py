@@ -78,7 +78,7 @@ class DependencyAnalyzer:
                 for line in f:
                     line = line.strip()
                     if line and not line.startswith("#") and not line.startswith("-"):
-                        parts = re.split(r'[=<>~!]', line, maxsplit=1)
+                        parts = re.split(r'===|==|~=|!=|<=|>=|<|>', line, maxsplit=1)
                         name = parts[0].strip()
                         version = parts[1].strip() if len(parts) > 1 else "*"
                         deps.append({
@@ -121,14 +121,21 @@ class DependencyAnalyzer:
         deps = []
         try:
             with open(file_path, "r", encoding="utf-8") as f:
+                in_require_block = False
                 for line in f:
-                    line = line.strip()
-                    if line.startswith("require"):
-                        parts = line.split()
+                    line = line.split("//", 1)[0].strip()
+                    if line == "require (":
+                        in_require_block = True
+                        continue
+                    if line == ")":
+                        in_require_block = False
+                        continue
+                    if line.startswith("require ") or in_require_block:
+                        parts = line.removeprefix("require ").split()
                         if len(parts) >= 2:
                             deps.append({
-                                "name": parts[1],
-                                "version": parts[2] if len(parts) > 2 else "*",
+                                "name": parts[0],
+                                "version": parts[1],
                                 "type": "external",
                                 "source": "go",
                             })
@@ -158,16 +165,24 @@ class DependencyAnalyzer:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 in_deps = False
+                dependency_indent = None
                 for line in f:
-                    line = line.strip()
-                    if line.startswith("dependencies:"):
-                        in_deps = True
-                    elif in_deps and line.startswith("  ") and ":" in line and not line.startswith("  "):
-                        in_deps = False
-                    elif in_deps and ":" in line:
-                        parts = line.split(":", 1)
+                    stripped = line.strip()
+                    if not stripped or stripped.startswith("#"):
+                        continue
+                    indent = len(line) - len(line.lstrip())
+                    if indent == 0:
+                        in_deps = stripped in ("dependencies:", "dev_dependencies:")
+                        dependency_indent = None
+                        continue
+                    if in_deps and ":" in stripped:
+                        if dependency_indent is None:
+                            dependency_indent = indent
+                        if indent != dependency_indent:
+                            continue
+                        parts = stripped.split(":", 1)
                         name = parts[0].strip()
-                        version = parts[1].strip() if len(parts) > 1 else "*"
+                        version = parts[1].split(" #", 1)[0].strip().strip("\"'") or "*"
                         deps.append({
                             "name": name,
                             "version": version,

@@ -23,6 +23,7 @@ async def get_health_score(analysis_id: str):
         "modules": [m.model_dump() for m in result.modules],
         "contributors": result.contributors,
         "readme_content": result.readme_content,
+        "analyzed_files": result.analyzed_files,
     }
 
     calculator = HealthScoreCalculator(analysis_data)

@@ -6,6 +6,12 @@ from typing import List, Dict, Optional
 logger = logging.getLogger(__name__)
 
 
+class AIServiceError(Exception):
+    def __init__(self, message: str, status_code: int = 502):
+        super().__init__(message)
+        self.status_code = status_code
+
+
 class AIService:
     def __init__(
         self,
@@ -16,14 +22,24 @@ class AIService:
         groq_model: str = "llama3-70b-8192",
         gemini_api_key: str = "",
         gemini_model: str = "gemini-1.5-flash",
+        ollama_think: Optional[bool] = None,
     ):
         self.provider = provider.lower()
         self.ollama_url = ollama_url.rstrip("/")
         self.ollama_model = ollama_model
+        self.ollama_think = ollama_think
         self.groq_api_key = groq_api_key
         self.groq_model = groq_model
         self.gemini_api_key = gemini_api_key
         self.gemini_model = gemini_model
+
+    @property
+    def model(self) -> str:
+        return {
+            "ollama": self.ollama_model,
+            "groq": self.groq_model,
+            "gemini": self.gemini_model,
+        }.get(self.provider, self.ollama_model)
 
     def chat(self, messages: List[Dict[str, str]]) -> Optional[str]:
         if self.provider == "gemini":
@@ -62,6 +78,8 @@ class AIService:
             "stream": False,
             "options": {"temperature": 0.7, "top_p": 0.9},
         }
+        if self.ollama_think is not None:
+            payload["think"] = self.ollama_think
         log_msgs = [{k: v[:100] if k == "content" else v for k, v in m.items()} for m in messages[-3:]]
         logger.info("Ollama request: model=%s, messages=%d, last_msgs=%s",
                     self.ollama_model, len(messages), log_msgs)
@@ -71,29 +89,53 @@ class AIService:
                 json=payload,
                 timeout=180,
             )
-        except requests.ConnectionError:
-            logger.error("Cannot connect to Ollama at %s", self.ollama_url)
-            return None
         except requests.Timeout:
             logger.error("Ollama request timed out after 180s")
-            return None
+            raise AIServiceError(
+                f"Ollama timed out while running '{self.ollama_model}'. "
+                "Try a smaller installed model or check the Ollama server logs.",
+                status_code=504,
+            ) from None
+        except requests.ConnectionError:
+            logger.error("Cannot connect to Ollama at %s", self.ollama_url)
+            raise AIServiceError(
+                f"Cannot connect to Ollama at {self.ollama_url}. Start Ollama and check OLLAMA_URL.",
+                status_code=503,
+            ) from None
         except Exception as e:
             logger.error("Ollama request failed: %s", e)
-            return None
+            raise AIServiceError("Ollama request failed. Check the Ollama server logs.") from None
         if resp.status_code != 200:
             logger.error("Ollama HTTP %d: %s", resp.status_code, resp.text[:1000])
-            return None
+            try:
+                error = str(resp.json().get("error") or resp.text)[:500]
+            except (ValueError, AttributeError):
+                error = resp.text[:500]
+            if resp.status_code == 404 and "model" in error.lower() and "not found" in error.lower():
+                raise AIServiceError(
+                    f"Ollama model '{self.ollama_model}' is not installed. "
+                    "Set OLLAMA_MODEL to an installed model shown by 'ollama list', "
+                    f"or install it with 'ollama pull {self.ollama_model}'.",
+                    status_code=503,
+                )
+            raise AIServiceError(f"Ollama error ({resp.status_code}): {error}")
         try:
             data = resp.json()
-        except json.JSONDecodeError:
+        except ValueError:
             logger.error("Ollama bad JSON: %s", resp.text[:1000])
-            return None
-        content = data.get("message", {}).get("content", "")
-        if not content:
+            raise AIServiceError("Ollama returned an invalid JSON response. Check OLLAMA_URL.") from None
+        if not isinstance(data, dict):
+            raise AIServiceError("Ollama returned an invalid chat response.")
+        if data.get("error"):
+            raise AIServiceError(f"Ollama error: {str(data['error'])[:500]}")
+        message = data.get("message")
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, str) or not content.strip():
             logger.warning("Ollama empty response: %s", json.dumps(data)[:500])
-        else:
-            logger.info("Ollama response: %d chars, starts with: %s",
-                        len(content), content[:150])
+            raise AIServiceError(
+                f"Ollama model '{self.ollama_model}' returned empty content. Check the Ollama server logs."
+            )
+        logger.info("Ollama response: %d chars, starts with: %s", len(content), content[:150])
         return content
 
     def _chat_groq(self, messages: List[Dict[str, str]]) -> Optional[str]:
