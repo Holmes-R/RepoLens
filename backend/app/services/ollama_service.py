@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+import time
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ class AIService:
         groq_api_key: str = "",
         groq_model: str = "llama3-70b-8192",
         gemini_api_key: str = "",
-        gemini_model: str = "gemini-1.5-flash",
+        gemini_model: str = "gemini-3.8-flash",
         ollama_think: Optional[bool] = None,
     ):
         self.provider = provider.lower()
@@ -31,7 +32,7 @@ class AIService:
         self.groq_api_key = groq_api_key
         self.groq_model = groq_model
         self.gemini_api_key = gemini_api_key
-        self.gemini_model = gemini_model
+        self.gemini_model = gemini_model.strip().removeprefix("models/")
 
     @property
     def model(self) -> str:
@@ -67,8 +68,6 @@ class AIService:
         result = self.chat(msgs)
         if result is None:
             return f"ERROR: provider={self.provider} returned None (check logs)"
-        if result.startswith("Groq ") or result.startswith("Gemini ") or result.startswith("Cannot "):
-            return result
         return result
 
     def _chat_ollama(self, messages: List[Dict[str, str]]) -> Optional[str]:
@@ -83,28 +82,39 @@ class AIService:
         log_msgs = [{k: v[:100] if k == "content" else v for k, v in m.items()} for m in messages[-3:]]
         logger.info("Ollama request: model=%s, messages=%d, last_msgs=%s",
                     self.ollama_model, len(messages), log_msgs)
-        try:
-            resp = requests.post(
-                f"{self.ollama_url}/api/chat",
-                json=payload,
-                timeout=180,
-            )
-        except requests.Timeout:
-            logger.error("Ollama request timed out after 180s")
-            raise AIServiceError(
-                f"Ollama timed out while running '{self.ollama_model}'. "
-                "Try a smaller installed model or check the Ollama server logs.",
-                status_code=504,
-            ) from None
-        except requests.ConnectionError:
-            logger.error("Cannot connect to Ollama at %s", self.ollama_url)
-            raise AIServiceError(
-                f"Cannot connect to Ollama at {self.ollama_url}. Start Ollama and check OLLAMA_URL.",
-                status_code=503,
-            ) from None
-        except Exception as e:
-            logger.error("Ollama request failed: %s", e)
-            raise AIServiceError("Ollama request failed. Check the Ollama server logs.") from None
+        resp = None
+        for attempt in (1, 2):
+            try:
+                resp = requests.post(
+                    f"{self.ollama_url}/api/chat",
+                    json=payload,
+                    timeout=180,
+                )
+            except requests.Timeout:
+                logger.error("Ollama request timed out after 180s")
+                raise AIServiceError(
+                    f"Ollama timed out while running '{self.ollama_model}'. "
+                    "Try a smaller installed model or check the Ollama server logs.",
+                    status_code=504,
+                ) from None
+            except requests.ConnectionError:
+                logger.error("Cannot connect to Ollama at %s", self.ollama_url)
+                raise AIServiceError(
+                    f"Cannot connect to Ollama at {self.ollama_url}. Start Ollama and check OLLAMA_URL.",
+                    status_code=503,
+                ) from None
+            except Exception as e:
+                logger.error("Ollama request failed: %s", e)
+                raise AIServiceError("Ollama request failed. Check the Ollama server logs.") from None
+            if resp.status_code == 500 and attempt == 1:
+                logger.warning(
+                    "Ollama HTTP 500 (likely llama-server crash during model load), "
+                    "retrying once in 2s: %s",
+                    resp.text[:300],
+                )
+                time.sleep(2)
+                continue
+            break
         if resp.status_code != 200:
             logger.error("Ollama HTTP %d: %s", resp.status_code, resp.text[:1000])
             try:
@@ -187,6 +197,8 @@ class AIService:
         return content
 
     def _chat_gemini(self, messages: List[Dict[str, str]]) -> Optional[str]:
+        if not self.gemini_api_key:
+            raise AIServiceError("GEMINI_API_KEY is missing. Configure it and restart the backend.", 503)
         log_msgs = [{k: v[:100] if k == "content" else v for k, v in m.items()} for m in messages[-3:]]
         logger.info("Gemini request: model=%s, messages=%d, last_msgs=%s",
                     self.gemini_model, len(messages), log_msgs)
@@ -207,39 +219,53 @@ class AIService:
 
         try:
             resp = requests.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={self.gemini_api_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent",
+                headers={"x-goog-api-key": self.gemini_api_key},
                 json=body,
                 timeout=60,
             )
-        except requests.ConnectionError:
-            logger.error("Cannot connect to Gemini API")
-            return "Cannot connect to Gemini API"
         except requests.Timeout:
             logger.error("Gemini request timed out after 60s")
-            return "Gemini request timed out"
-        except Exception as e:
-            logger.error("Gemini request failed: %s", e)
-            return f"Gemini request failed: {e}"
+            raise AIServiceError("Gemini request timed out. Retry the request.", 504) from None
+        except requests.ConnectionError:
+            logger.error("Cannot connect to Gemini API")
+            raise AIServiceError("Cannot connect to Gemini API. Check the backend's network connection.", 503) from None
+        except requests.RequestException:
+            logger.error("Gemini request failed")
+            raise AIServiceError("Gemini request failed. Check the backend logs.") from None
         if resp.status_code != 200:
-            logger.error("Gemini HTTP %d: %s", resp.status_code, resp.text[:1000])
-            return f"Gemini API error ({resp.status_code}): {resp.text[:500]}"
+            try:
+                error = resp.json().get("error", {}).get("message") or resp.text
+            except (ValueError, AttributeError):
+                error = resp.text
+            error = str(error).replace(self.gemini_api_key, "[REDACTED]")[:500]
+            logger.error("Gemini HTTP %d: %s", resp.status_code, error)
+            if resp.status_code == 404:
+                raise AIServiceError(
+                    f"Gemini model '{self.gemini_model}' is unavailable. "
+                    "Update GEMINI_MODEL to a supported model and restart the backend. "
+                    f"Details: {error}",
+                    503,
+                )
+            status = 429 if resp.status_code == 429 else 502
+            raise AIServiceError(f"Gemini API error ({resp.status_code}): {error}", status)
         try:
             data = resp.json()
-        except json.JSONDecodeError:
-            logger.error("Gemini bad JSON: %s", resp.text[:1000])
-            return f"Gemini bad response: {resp.text[:500]}"
-        candidates = data.get("candidates", [])
-        if not candidates:
-            logger.warning("Gemini empty candidates: %s", json.dumps(data)[:500])
-            return f"Gemini returned no candidates: {json.dumps(data)[:300]}"
-        parts = candidates[0].get("content", {}).get("parts", [])
-        if not parts:
-            logger.warning("Gemini empty parts: %s", json.dumps(data)[:500])
-            return "Gemini returned empty content"
-        content = parts[0].get("text", "")
-        if not content:
-            logger.warning("Gemini empty text: %s", json.dumps(data)[:500])
-            return "Gemini returned empty text"
+        except ValueError:
+            raise AIServiceError("Gemini returned an invalid JSON response.") from None
+        candidates = data.get("candidates") if isinstance(data, dict) else None
+        if not isinstance(candidates, list) or not candidates or not isinstance(candidates[0], dict):
+            raise AIServiceError("Gemini returned no answer. Check the provider diagnostics and retry.")
+        message = candidates[0].get("content")
+        parts = message.get("parts") if isinstance(message, dict) else None
+        if not isinstance(parts, list):
+            raise AIServiceError("Gemini returned empty content.")
+        content = "".join(
+            part["text"] for part in parts
+            if isinstance(part, dict) and not part.get("thought") and isinstance(part.get("text"), str)
+        )
+        if not content.strip():
+            raise AIServiceError("Gemini returned empty content.")
         logger.info("Gemini response: %d chars, starts with: %s",
                     len(content), content[:150])
         return content

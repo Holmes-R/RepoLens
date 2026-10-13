@@ -170,7 +170,7 @@ def chat_with_repo(request: ChatRequest):
             detail=f"AI provider '{config.AI_PROVIDER}' returned no response. Check the backend logs for details.",
         )
 
-    if response.startswith("Groq ") or response.startswith("Gemini ") or response.startswith("Cannot "):
+    if ai_service.provider != "gemini" and response.startswith(("Groq ", "Cannot ")):
         raise HTTPException(status_code=502, detail=response)
 
     sources = []
@@ -206,7 +206,9 @@ def test_ai():
         result = ai_service.test_chat()
     except AIServiceError as error:
         return {**diagnostics, "status": "error", "message": str(error)}
-    succeeded = bool(result) and not result.startswith(("ERROR", "Groq ", "Gemini ", "Cannot "))
+    succeeded = bool(result) and (
+        ai_service.provider == "gemini" or not result.startswith(("ERROR", "Groq ", "Cannot "))
+    )
     return {
         **diagnostics,
         "status": "ok" if succeeded else "error",

@@ -26,7 +26,7 @@ All delivered through a flat dark-themed dashboard accessible from a single URL.
 ### Architecture
 - **Backend:** Python/FastAPI service with a modular analysis pipeline — clones repos via GitPython, walks ASTs with tree-sitter, detects frameworks, computes cyclomatic complexity, and emits structured JSON. A pluggable AI service supports multiple providers (Ollama locally, Groq, Gemini) for context-aware codebase Q&A.
 - **Frontend:** React/TypeScript SPA built with Vite and Tailwind CSS. Interactive dashboard with 7 tabs (Overview, Architecture, Dependencies, Database, Call Graph, Diagrams, Contributors). Mermaid diagrams use `theme: 'base'` with custom dark-mode theme variables. Sidebar navigation preserves repo context across Analysis, Diagrams, and Chat views via URL-based routing.
-- **AI Chat:** Keyword-based file retrieval finds relevant source files from the analyzed codebase and passes them as context to the AI. Supports Ollama (local), Groq (`llama-3.3-70b`), or Gemini (`gemini-2.0-flash`) — configurable via a single environment variable.
+- **AI Chat:** Keyword-based file retrieval finds relevant source files from the analyzed codebase and passes them as context to the AI. Supports Ollama (local), Groq (`llama-3.3-70b`), or Gemini (`gemini-3.8-flash`) — configurable via a single environment variable.
 
 ### Deployment
 - **Single-container Docker** — builds frontend (Node) and backend (Python) in one image. Backend serves the React SPA as static files and handles API routes under `/api/`.
@@ -125,8 +125,8 @@ Set via environment variables (`.env` file for local, Render dashboard for produ
 | Variable | Default | Description |
 |---|---|---|
 | `AI_PROVIDER` | auto | `gemini`, `groq`, `ollama`, or `openai` — auto-detected from API key presence |
-| `GEMINI_API_KEY` | — | Google Gemini API key (free, 60 req/min) |
-| `GEMINI_MODEL` | `gemini-2.0-flash` | Gemini model name |
+| `GEMINI_API_KEY` | — | Google Gemini API key |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | Gemini model name |
 | `GROQ_API_KEY` | — | Groq API key (free tier, rate limited) |
 | `GROQ_MODEL` | `llama-3.3-70b-versatile` | Groq model name |
 | `OLLAMA_URL` | `http://localhost:11434` | Ollama server URL |
